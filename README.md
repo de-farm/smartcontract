@@ -6,12 +6,11 @@ yarn compile
 ```
 
 ## Setting the configuration
-+ optimisticGoerli.config.ts
-+ singTrade.config.ts
+
 
 ## Deploy
 ```bash
-yarn deploy:optimisticGoerli
+yarn deploy:arbitrumSopelia
 ```
 
 ## Setting the configuration
@@ -21,13 +20,13 @@ yarn deploy:optimisticGoerli
 
 ## Verify the smart contracts
 ```bash
-verify:reader:optimisticGoerli
+verify:reader:arbitrumSopelia
 ```
 
 ```bash
-verify:df:optimisticGoerli
+verify:df:arbitrumSopelia
 ```
 
 ```bash
-verify:stvault:optimisticGoerli
+verify:stvault:arbitrumSopelia
 ```

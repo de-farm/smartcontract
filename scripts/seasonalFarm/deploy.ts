@@ -38,7 +38,7 @@ async function main() {
     });
   }
 
-  if(network.name === 'arbitrumGoerli') {
+  if(network.name !== 'localhost') {
     const AssetSimulator = await ethers.getContractFactory("AssetSimulator");
     const assetSimulator = await upgrades.deployProxy(
       AssetSimulator,
@@ -53,19 +53,7 @@ async function main() {
     });
   }
 
-  const VertexHandler = await ethers.getContractFactory("VertexHandler");
-  const vertexHandler = await upgrades.deployProxy(
-    VertexHandler, [ seasonalFarmConfig.vertexQuerier ]
-  );
-  console.log(`DexHandler deployed to ${await vertexHandler.getAddress()}`);
-
-  if(network.name !== "localhost") {
-    await run("verify:verify", {
-      address: await vertexHandler.getAddress(),
-    });
-  }
-
-  if(network.name === 'arbitrumGoerli') {
+  if(network.name !== 'localhost') {
     const DexSimulator = await ethers.getContractFactory("DexSimulator");
     const dexSimulator = await upgrades.deployProxy(
       DexSimulator,
@@ -82,7 +70,7 @@ async function main() {
   const FarmFactory = await ethers.getContractFactory("SeasonalFarmFactory");
   const farmFactory = await upgrades.deployProxy(FarmFactory, [
     await assetHandler.getAddress(),
-    await vertexHandler.getAddress(),
+    seasonalFarmConfig.dexHandler,
     whitelistedTokens,
     await seasonalFarm.getAddress(),
     await farmManagerment.getAddress()

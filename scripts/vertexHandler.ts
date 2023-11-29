@@ -1,10 +1,13 @@
 import { ethers, upgrades, run, network } from "hardhat";
 
+import { getChainConfig } from "../config/vertexHandler.config";
+
 async function main() {
+  const config = getChainConfig(network.name);
+
   const VertexHandler = await ethers.getContractFactory("VertexHandler");
   const vertexHandler = await upgrades.deployProxy(
-    VertexHandler, ['0xFc69d0f1d70825248C9F9582d13F93D60b6b56De'
-    ]
+    VertexHandler, [config.quote, config.endpoint, config.querier]
   );
 
   console.log(

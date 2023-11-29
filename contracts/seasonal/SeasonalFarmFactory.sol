@@ -17,7 +17,7 @@ import "./interfaces/IHasFeeInfo.sol";
 import "../interfaces/IHasPausable.sol";
 import "./interfaces/IHasAssetInfo.sol";
 import "./interfaces/IAssetHandler.sol";
-import "./interfaces/IDexHandler.sol";
+import "../interfaces/IDexHandler.sol";
 import "./interfaces/IVerifier.sol";
 
 import "./interfaces/IHasSupportedAsset.sol";
@@ -29,6 +29,7 @@ import "../interfaces/IHasAdministrable.sol";
 import "../utils/Constants.sol";
 import "../utils/ProtocolInfo.sol";
 import "../utils/ETHFee.sol";
+import "../utils/SupportedDex.sol";
 import "../utils/Errors.sol";
 import "./Errors.sol";
 
@@ -36,7 +37,7 @@ contract SeasonalFarmFactory is
     IHasFeeInfo, IHasAssetInfo, IHasPausable, IVerifier,
     OwnableUpgradeable, PausableUpgradeable, EIP712Upgradeable,
     WhitelistedTokens, IHasAdministrable, Administrable, Makeable, ProtocolInfo,
-    ETHFee
+    ETHFee, SupportedDex
 {
     using ECDSAUpgradeable for bytes32;
     using SafeMathUpgradeable for uint256;
@@ -47,7 +48,6 @@ contract SeasonalFarmFactory is
     );
 
     event AssetHandlerSet(address assetHandler);
-    event DexHandlerSet(address dexHandler);
 
     event MaximumSupportedAssetCountChanged(uint256 count);
 
@@ -71,7 +71,6 @@ contract SeasonalFarmFactory is
     address private farmManagementImplementation;
 
     address public assetHandler;
-    address public dexHandler;
 
     Fees private maximumFees;
     uint256[] penaltyFees;
@@ -98,10 +97,8 @@ contract SeasonalFarmFactory is
         __Makeable_init();
         __ProtocolInfo_init(FEE_DENOMINATOR.div(10)); // default: 10%
         __ETHFee_init();
-
+        __SupportedDex_init(_dexHandler);
         _setAssetHandler(_assetHandler);
-        _setDexHandler(_dexHandler);
-
 
         seasonalFarmImplementation = _seasonalFarmImplementation;
         farmManagementImplementation = _farmManagementImplementation;
@@ -249,24 +246,6 @@ contract SeasonalFarmFactory is
     function isValidAsset(address asset) public view override returns (bool) {
         return IAssetHandler(assetHandler).priceAggregators(asset) != address(0);
     }
-
-    /// @notice Set the dex handler address
-    /// @param _dexHandler The address of the dex handler
-    function setDexHandler(address _dexHandler) external onlyOwner {
-        _setDexHandler(_dexHandler);
-    }
-
-    /// @notice Set the dex handler address internal call
-    /// @param _dexHandler The address of the dex handler
-    function _setDexHandler(address _dexHandler) internal {
-        require(_dexHandler != address(0), "Invalid DEX handler address");
-
-        dexHandler = _dexHandler;
-
-        emit DexHandlerSet(dexHandler);
-    }
-
-    /// PROTOCOL FEE
 
     /// MANAGER FEE
     /// @notice Set the maximum manager fee

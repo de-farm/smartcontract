@@ -17,6 +17,8 @@ import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasProtocolInfo.sol";
 import "../interfaces/IHasSeedable.sol";
 import "../seeds/IDeFarmSeeds.sol";
+import "../interfaces/ISupportedDex.sol";
+import "../interfaces/IDexHandler.sol";
 
 /// @title SingleFarm
 /// @notice Contract for the investors to deposit and for managers to open and close positions
@@ -116,7 +118,7 @@ contract SingleFarm is ISingleFarm, Initializable {
 
     /// @notice allows the manager to end the `fundraisingPeriod` early and open a market position
     /// @dev transfers the `totalRaised` usdc of the farm to the operator
-    function closeFundraisingAndOpenPosition(bytes memory info) external override openOnce whenNotPaused {
+    function closeFundraisingAndOpenPosition(bytes memory info) external openOnce whenNotPaused {
         if(msg.sender != manager) revert NoAccess(manager, msg.sender);
 
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
@@ -139,7 +141,16 @@ contract SingleFarm is ISingleFarm, Initializable {
         }
 
         if(operator == address(0)) revert ZeroAddress();
-        usdc.transfer(operator, totalRaised);
+        // usdc.transfer(operator, totalRaised);
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
+        // Collect dex fee
+        totalRaised -= 2e6;
+        usdc.approve(dex, totalRaised);
+        (bool success, ) = dex.call(instruction);
+        if(!success) revert ExecutionCallFailure();
 
         emit FundraisingClosedAndPositionOpened(info);
     }
@@ -178,40 +189,64 @@ contract SingleFarm is ISingleFarm, Initializable {
         }
 
         if(operator == address(0)) revert ZeroAddress();
-        usdc.transfer(operator, totalRaised);
+
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
+        // Collect dex fee
+        totalRaised -= 2000000;
+        usdc.approve(dex, totalRaised + 1e6);
+
+        (bool success, ) = dex.call(instruction);
+        if(!success) revert ExecutionCallFailure();
 
         emit PositionOpened(info);
+    }
+
+    function setLinkSigner() public whenNotPaused {
+        if(msg.sender != operator) revert NoAccess(operator, msg.sender);
+
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        (address dex,  bytes memory instruction) = dexHandler.linkSignerInstruction(address(this), operator);
+
+        IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
+        usdc.approve(dex, 1000000);
+
+        (bool success, ) = dex.call(instruction);
+        if(!success) revert ExecutionCallFailure();
     }
 
     /// @notice allows the manager/operator to mark farm as closed
     /// @dev can be called only if theres a position already open
     /// @dev `status` will be `PositionClosed`
-    function closePosition() external override whenNotPaused {
+    function closePosition(uint256 balance) external override whenNotPaused {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.OPENED) revert NoOpenPositions();
 
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
+
         IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-        uint256 allowanceAmount = usdc.allowance(operator, address(this));
-        if(allowanceAmount == 0) revert ZeroAmount();
-        usdc.transferFrom(operator, address(this), allowanceAmount);
+        usdc.approve(dex, 1000000);
 
-        uint256 _usdcBalance = usdc.balanceOf(address(this));
+        (bool success, ) = dex.call(instruction);
+        if(!success) revert ExecutionCallFailure();
 
-        if(_usdcBalance > totalRaised) {
-            uint256 profits = _usdcBalance - totalRaised;
+        if(balance > totalRaised) {
+            uint256 profits = balance - totalRaised;
 
             uint256 _managerFee = (profits * managerFeeNumerator) / FEE_DENOMINATOR;
             if(_managerFee > 0) usdc.transfer(manager, _managerFee);
 
-            /* IHasProtocolInfo protocolInfo = IHasProtocolInfo(factory);
-            (uint256 _protocolFeeNumerator, uint256 _protocolFeeDenominator) = protocolInfo.getProtocolFee();
-            uint256 _protocolFee = (profits * _protocolFeeNumerator) / _protocolFeeDenominator;
-            if(_protocolFee > 0) usdc.transfer(protocolInfo.treasury(), _protocolFee); */
-
-            remainingAmountAfterClose = usdc.balanceOf(address(this));
+            remainingAmountAfterClose = balance - _managerFee;
         }
         else {
-            remainingAmountAfterClose = _usdcBalance;
+            remainingAmountAfterClose = balance;
         }
 
         status = SfStatus.CLOSED;

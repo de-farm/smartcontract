@@ -17,28 +17,29 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8545",
       timeout: 600000,
     },
-    arbitrumGoerli : {
-      url: `https://arbitrum-goerli.infura.io/v3/1dc76974d45041a399877518073f43cc`,
-      chainId: 421613,
+    arbitrumSopelia : {
+      url: `https://sepolia-rollup.arbitrum.io/rpc`,
+      chainId: 421614,
       accounts: process.env.OWNER_PRIVATE_KEY
         ?[
           process.env.OWNER_PRIVATE_KEY,
         ]:[],
-    },
-    optimisticGoerli : {
-      chainId: 420,
-      url: process.env.GOERLI_OPT_URL || "https://goerli.optimism.io/",
-      accounts: process.env.OWNER_PRIVATE_KEY
-        ?[
-          process.env.OWNER_PRIVATE_KEY,
-        ]:[],
-    },
+    }
   },
   etherscan: {
     apiKey: {
-      optimisticGoerli : process.env.ETHERSCAN_API_KEY || "8KT8WRN5IR3B4UUQVDQBR23YAA2E7KG7PP",
-      arbitrumGoerli : process.env.ARBISCAN_API_KEY || "Q64QDZTGG8Q5R97T6E2K2ZD2638NDSPFKM",
+      arbitrumSopelia : process.env.ARBISCAN_API_KEY || "Q64QDZTGG8Q5R97T6E2K2ZD2638NDSPFKM",
     },
+    customChains: [
+      {
+        network: "arbitrumSopelia",
+        chainId: 421614,
+        urls: {
+          apiURL: "https://api-sepolia.arbiscan.io/api",
+          browserURL: "https://sepolia.arbiscan.io/"
+        }
+      }
+    ]
   },
   solidity: {
     compilers: [

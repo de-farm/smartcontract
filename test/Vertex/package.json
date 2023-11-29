@@ -8,12 +8,12 @@
     "test": "ts-node test.ts"
   },
   "devDependencies": {
-    "@vertex-protocol/client": "^0.5.3",
-    "@vertex-protocol/contracts": "^0.5.3",
-    "@vertex-protocol/engine-client": "^0.5.3",
-    "@vertex-protocol/indexer-client": "^0.5.3",
-    "@vertex-protocol/trigger-client": "^0.5.3",
-    "@vertex-protocol/utils": "^0.5.3",
+    "@vertex-protocol/client": "^0.14.0",
+    "@vertex-protocol/contracts": "^0.14.0",
+    "@vertex-protocol/engine-client": "^0.14.0",
+    "@vertex-protocol/indexer-client": "^0.14.0",
+    "@vertex-protocol/trigger-client": "^0.14.0",
+    "@vertex-protocol/utils": "^0.14.0",
     "bignumber.js": "^9.1.2",
     "ethers": "^6.7.1",
     "ts-node": "^10.9.1",

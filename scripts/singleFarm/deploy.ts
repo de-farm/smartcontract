@@ -1,6 +1,5 @@
 import { ethers, upgrades, run, network } from "hardhat";
 import { getSingleFarmConfig } from "../../config/singleFarm.config";
-import { Contract } from "ethers";
 
 async function main() {
   const singleFarmConfig = getSingleFarmConfig(network.name);
@@ -16,6 +15,7 @@ async function main() {
   const singleFarmFactory = await ethers.getContractFactory("SingleFarmFactory");
   const factory = await upgrades.deployProxy(
     singleFarmFactory, [
+      singleFarmConfig.dexHandler,
       await singleFarm.getAddress(),
       singleFarmConfig.capacityPerFarm,
       singleFarmConfig.minInvestmentAmount,
@@ -44,9 +44,8 @@ async function main() {
     await factory.setMaker(singleFarmConfig.maker);
   }
 
-  singleFarmConfig.baseTokens.forEach(async (baseToken: string) => {
-    await factory.addToken(baseToken);
-  });
+  if(singleFarmConfig.baseTokens.length > 0)
+    await factory.addTokens(singleFarmConfig.baseTokens)
 }
 
 main().catch((error) => {

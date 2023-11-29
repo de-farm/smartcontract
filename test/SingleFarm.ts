@@ -2,9 +2,9 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers, network, upgrades } from "hardhat";
-import { Contract, getBytes, hashMessage, parseEther, parseUnits } from "ethers";
+import { Contract, ContractTransactionReceipt, getBytes, hashMessage, parseEther, parseUnits } from "ethers";
 import { getSingleFarmConfig } from "../config/singleFarm.config";
-import { SingleFarmFactory, SingleFarm } from "../types";
+import { SingleFarmFactory, SingleFarm, DexSimulator } from "../types";
 
 enum Status {
   NOT_OPENED,
@@ -35,6 +35,7 @@ describe("Single Farm", function () {
   let baseToken: any
   let singleFarm: SingleFarm
   let singleFarmFactory: SingleFarmFactory
+  let dexSimulator: DexSimulator
 
   before(async function () {
     [owner, admin, maker, treasury, manager, user, operator] = await ethers.getSigners();
@@ -53,6 +54,12 @@ describe("Single Farm", function () {
       DeFarmSeeds, []
     );
 
+    // deploy Dex Simulator
+    const DexSimulator = await ethers.getContractFactory("DexSimulator");
+    dexSimulator = await upgrades.deployProxy(
+      DexSimulator, []
+    ) as unknown as DexSimulator;
+
     const SingleFarm = await ethers.getContractFactory("SingleFarm");
     const SingleFarmFactory = await ethers.getContractFactory("SingleFarmFactory");
 
@@ -61,6 +68,7 @@ describe("Single Farm", function () {
     singleFarmFactory = await upgrades.deployProxy(
       SingleFarmFactory,
       [
+        await dexSimulator.getAddress(),
         await singleFarmImplementation.getAddress(), // Template
         singleTradeConfig.capacityPerFarm, // _capacityPerFarm
         singleTradeConfig.minInvestmentAmount, // min
@@ -169,7 +177,13 @@ describe("Single Farm", function () {
       expect(operatorBalanceAfter).to.equals(operatorBalanceBefore + ethFee)
 
       const SingleFarm = await ethers.getContractFactory("SingleFarm");
-      singleFarm = SingleFarm.attach(await singleFarmFactory.deployedFarms(0)) as unknown as SingleFarm;
+
+      const receipt: ContractTransactionReceipt | null = await tx.wait();
+      const events = await singleFarmFactory.queryFilter(singleFarmFactory.filters.FarmCreated(), receipt?.blockHash, receipt?.blockNumber)
+      const farmAddress = events[0].args.farm
+      // console.log(farmEventArgs)
+      // singleFarm = SingleFarm.attach(await singleFarmFactory.deployedFarms(0)) as unknown as SingleFarm;
+      singleFarm = SingleFarm.attach(farmAddress) as unknown as SingleFarm;
 
       farmInfo.farmCreatedAt = (await ethers.provider.getBlock(await ethers.provider.getBlockNumber()))?.timestamp!
     });
@@ -359,6 +373,7 @@ describe("Single Farm", function () {
           const totalRaised = await singleFarm.totalRaised()
 
           const hash = hashMessage("limit")
+          // const tx = await singleFarm.connect(manager).closeFundraisingAndOpenPosition(hash);
           const tx = await singleFarm.connect(manager).closeFundraisingAndOpenPosition(hash);
 
           expect(tx).to.emit(singleFarm, "FundraisingClosedAndPositionOpened").exist
@@ -372,9 +387,10 @@ describe("Single Farm", function () {
           const remaining = totalRaised - expectedProtocolFee
 
           const operatorBalanceAfter = await usd.balanceOf(operator.address)
+          const dexBalanceAfter = await dexSimulator.balances(await singleFarm.getAddress())
           const treasuryBalanceAfter = await usd.balanceOf(treasury.address)
 
-          expect(operatorBalanceAfter).to.equals(operatorBalanceBefore + remaining)
+          expect(operatorBalanceAfter + dexBalanceAfter).to.equals(operatorBalanceBefore + remaining)
           expect(treasuryBalanceAfter).to.equals(treasuryBalanceBefore + expectedProtocolFee)
         });
 
@@ -413,29 +429,29 @@ describe("Single Farm", function () {
 
             const loss = (await singleFarm.totalRaised())/BigInt(10)
 
-            const operatorBalanceBefore = await usd.balanceOf(operator.address)
-            const remainingBalance = operatorBalanceBefore - loss
+            const dexBalanceBefore = await dexSimulator.balances(await singleFarm.getAddress())
+            const remainingBalance = dexBalanceBefore - loss
             const managerBalanceBefore = await usd.balanceOf(manager.address)
             const treasuryBalanceBefore = await usd.balanceOf(treasury.address)
             const contractBalanceBefore = await usd.balanceOf(await singleFarm.getAddress())
 
-            expect(operatorBalanceBefore).to.greaterThan(0)
+            expect(dexBalanceBefore).to.greaterThan(0)
             expect(contractBalanceBefore).to.equals(0)
 
             await usd.connect(operator).approve(await singleFarm.getAddress(), remainingBalance)
 
-            const tx = await singleFarm.connect(manager).closePosition();
+            const tx = await singleFarm.connect(manager).closePosition(remainingBalance);
 
             expect(await singleFarm.status()).to.equals(Status.CLOSED);
 
             expect(tx).to.emit(singleFarm, "PositionClosed").exist
 
-            const operatorBalanceAfter = await usd.balanceOf(operator.address)
+            const dexBalanceAfter = await dexSimulator.balances(await singleFarm.getAddress())
             const managerBalanceAfter = await usd.balanceOf(manager.address)
             const treasuryBalanceAfter = await usd.balanceOf(treasury.address)
             const contractBalanceAfter = await usd.balanceOf(await singleFarm.getAddress())
 
-            expect(operatorBalanceAfter).to.equals(loss)
+            expect(dexBalanceAfter).to.equals(loss)
             expect(treasuryBalanceAfter).to.equals(treasuryBalanceBefore)
             expect(managerBalanceAfter).to.equals(managerBalanceBefore)
             expect(contractBalanceAfter).to.equals(contractBalanceBefore + remainingBalance)
@@ -483,6 +499,7 @@ describe("Single Farm", function () {
           const totalRaised = await singleFarm.totalRaised()
 
           const hash = hashMessage("limit")
+          // const tx = await singleFarm.connect(manager).openPosition(hash);
           const tx = await singleFarm.connect(manager).openPosition(hash);
 
           expect(tx).to.emit(singleFarm, "PositionOpened").exist
@@ -495,27 +512,30 @@ describe("Single Farm", function () {
           const remaining = totalRaised - expectedProtocolFee
 
           const operatorBalanceAfter = await usd.balanceOf(operator.address)
+          const dexBalanceAfter = await dexSimulator.balances(await singleFarm.getAddress())
           const treasuryBalanceAfter = await usd.balanceOf(treasury.address)
 
-          expect(operatorBalanceAfter).to.equals(operatorBalanceBefore + remaining)
+          expect(operatorBalanceAfter + dexBalanceAfter).to.equals(operatorBalanceBefore + remaining)
           expect(treasuryBalanceAfter).to.equals(treasuryBalanceBefore + expectedProtocolFee)
         });
 
         it("Should let the manager close position with profit", async function () {
-          const profit = parseUnits("100", USDC_DECIMALS)
-          await usd.connect(owner).mint(operator.address, profit)
+          const dexBalanceBefore = await dexSimulator.balances(await singleFarm.getAddress())
+          expect(dexBalanceBefore).to.greaterThan(0)
 
-          const operatorBalanceBefore = await usd.balanceOf(operator.address)
+          const profit = parseUnits("100", USDC_DECIMALS)
+          await usd.connect(owner).mint(await dexSimulator.getAddress(), profit)
+          await dexSimulator.setBalance(await singleFarm.getAddress(), dexBalanceBefore + profit)
+
           const managerBalanceBefore = await usd.balanceOf(manager.address)
           // const treasuryBalanceBefore = await usd.balanceOf(treasury.address)
           const contractBalanceBefore = await usd.balanceOf(await singleFarm.getAddress())
 
-          expect(operatorBalanceBefore).to.greaterThan(0)
           expect(contractBalanceBefore).to.equals(0)
 
-          await usd.connect(operator).approve(await singleFarm.getAddress(), operatorBalanceBefore)
+          await usd.connect(operator).approve(await singleFarm.getAddress(), dexBalanceBefore)
 
-          const tx = await singleFarm.connect(manager).closePosition();
+          const tx = await singleFarm.connect(manager).closePosition(dexBalanceBefore + profit);
 
           expect(await singleFarm.status()).to.equals(Status.CLOSED);
 
@@ -528,14 +548,14 @@ describe("Single Farm", function () {
           const expectedProtocolFee = profit.mul(numeratorProtocolFee).div(denominatorProtocolFee) */
 
           // const expectedContractBalance = operatorBalanceBefore.sub(expectedManagerFee).sub(expectedProtocolFee)
-          const expectedContractBalance = operatorBalanceBefore - expectedManagerFee
+          const expectedContractBalance = dexBalanceBefore + profit - expectedManagerFee
 
-          const operatorBalanceAfter = await usd.balanceOf(operator.address)
+          const dexBalanceAfter = await dexSimulator.balances(await singleFarm.getAddress())
           const managerBalanceAfter = await usd.balanceOf(manager.address)
           // const treasuryBalanceAfter = await usd.balanceOf(treasury.address)
           const contractBalanceAfter = await usd.balanceOf(await singleFarm.getAddress())
 
-          expect(operatorBalanceAfter).to.equals(0)
+          expect(dexBalanceAfter).to.equals(0)
           // expect(treasuryBalanceAfter).to.equals(treasuryBalanceBefore.add(expectedProtocolFee))
           expect(managerBalanceAfter).to.equals(managerBalanceBefore + expectedManagerFee)
           expect(contractBalanceAfter).to.equals(contractBalanceBefore + expectedContractBalance)

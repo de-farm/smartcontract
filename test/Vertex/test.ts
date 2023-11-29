@@ -7,14 +7,14 @@ import BigNumber from 'bignumber.js';
  * Create a VertexClient object
  */
 async function main() {
-  // Create a signer connected to Goerli testnet
+  // Create a signer connected to Sopelia testnet
   const signer = new Wallet(
-    "4e131a5cdd7543d1eb473caffbfa38c98135cb259bac93ec936779e427992108", // add private key, or import, or use .env
+    "", // add private key, or import, or use .env
     new JsonRpcProvider(
-      'https://goerli-rollup.arbitrum.io/rpc',
+      'https://sepolia-rollup.arbitrum.io/rpc	',
       {
-        name: 'arbitrum-goerli',
-        chainId: 421613,
+        name: 'arbitrum-sopelia',
+        chainId: 421614,
       },
     ),
   );
@@ -24,8 +24,8 @@ async function main() {
     signerOrProvider: signer,
   });
 
-  const signerAddress = signer.address
-  // const signerAddress = '0xcc5Fb9F31C6F5A080430194fDf68E3308B753eF9'
+  // const signerAddress = signer.address
+  const signerAddress = '0xFA51cd8bc8B56B9737E5086Bef3B0Dd5e03eDCD0'
 
   const subaccountID = await vertexClient.subaccount.getSubaccountId({name: 'default', address: signerAddress})
   /* const summary = await vertexClient.subaccount.getSubaccountSummary({subaccountName: 'default', subaccountOwner: signer.address});
@@ -64,6 +64,16 @@ async function main() {
   const totalApi = contracts.calcTotalPortfolioValues(subAccountSummaryApi)
   console.log(totalApi.netTotal);
   console.log(totalApi.totalNotional.div(ONE_DOLLAR).toNumber());
+
+  try {
+  await vertexClient.spot.withdraw({
+    subaccountOwner: signerAddress,
+    subaccountName: 'default',
+    productId: 0,
+    amount: 10,
+    nonce: '1'
+  })
+}catch(e) { console.log(e)}
 }
 
 main();

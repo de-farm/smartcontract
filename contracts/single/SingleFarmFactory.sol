@@ -20,6 +20,7 @@ import "../utils/WhitelistedTokens.sol";
 import "../utils/Administrable.sol";
 import "../utils/Makeable.sol";
 import "../utils/ETHFee.sol";
+import "../utils/SupportedDex.sol";
 import "../utils/ProtocolInfo.sol";
 import "../utils/Constants.sol";
 import "../interfaces/IHasSeedable.sol";
@@ -35,7 +36,7 @@ contract SingleFarmFactory is
     ISingleFarmFactory, IHasPausable, IDepositConfig, IHasSeedable,
     OwnableUpgradeable, PausableUpgradeable, EIP712Upgradeable,
     WhitelistedTokens, IHasAdministrable, Administrable, Makeable, ProtocolInfo,
-    ETHFee
+    ETHFee, SupportedDex
 {
     using ECDSAUpgradeable for bytes32;
 
@@ -83,6 +84,7 @@ contract SingleFarmFactory is
     /// @param _maxLeverage max leverage which can be used by the manager when creating an farm
     /// @param _usdc USDC contract address
     function initialize(
+        address _dexHandler,
         address _singleFarmImplementation,
         uint256 _capacityPerFarm,
         uint256 _minInvestmentAmount,
@@ -99,6 +101,7 @@ contract SingleFarmFactory is
         __Makeable_init();
         __ProtocolInfo_init(5e18);
         __ETHFee_init();
+        __SupportedDex_init(_dexHandler);
 
         if (_singleFarmImplementation == address(0)) revert ZeroAddress();
         if (_usdc == address(0)) revert ZeroAddress();

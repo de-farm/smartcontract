@@ -4,13 +4,13 @@ export interface ChainConfig {
         aggregator: string
     }[];
     maker?: string;
-    vertexQuerier?: string;
+    dexHandler: string;
 }
 
 export const getChainConfig = (networkName: string): ChainConfig => {
     switch(networkName) {
-        case "arbitrumGoerli":
-            // https://docs.chain.link/data-feeds/price-feeds/addresses?network=arbitrum#Arbitrum%20Goerli
+        case "arbitrumSopelia":
+            // https://docs.chain.link/data-feeds/price-feeds/addresses?network=arbitrum#Arbitrum%20Sopelia
             return {
                 whitelistedTokens: [
                     { // USDC
@@ -27,7 +27,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     }
                 ],
                 maker: '0xb66c1e96a3675bbfb8d13df329033f84a3c00c9f',
-                vertexQuerier: '0xFc69d0f1d70825248C9F9582d13F93D60b6b56De'
+                dexHandler: '0x57c7C95CDC05D099991EBFd91171a75E0C35a1b5'
             }
         case "mainnet": return {
             whitelistedTokens: [
@@ -45,12 +45,8 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                 }
             ],
             maker: '0x0000000000000000000000000000000000000000',
-            vertexQuerier: '0x1693273B443699bee277eCbc60e2C8027E91995d'
+            dexHandler: '0x57c7C95CDC05D099991EBFd91171a75E0C35a1b5'
         }
-        case "optimisticGoerli":
-            return {
-                whitelistedTokens: []
-            }
         default:
             return {
                 whitelistedTokens: [
@@ -68,7 +64,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     }
                 ],
                 maker: '0xb66c1e96a3675bbfb8d13df329033f84a3c00c9f',
-                vertexQuerier: '0xFc69d0f1d70825248C9F9582d13F93D60b6b56De'
+                dexHandler: '0xFc69d0f1d70825248C9F9582d13F93D60b6b56De'
             }
     }
 }

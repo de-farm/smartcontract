@@ -11,3 +11,5 @@ error NoAccess(address desired, address given);
 error InvalidSignature(address desired);
 error InvalidAddress(address given);
 error InvalidLength(uint256 desired);
+error MakeInstructionFailure();
+error ExecutionCallFailure();
