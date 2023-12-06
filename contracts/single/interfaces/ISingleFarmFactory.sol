@@ -53,7 +53,7 @@ interface ISingleFarmFactory {
         uint256 leverage;
     }
 
-    function createFarm(Sf calldata _sf, uint256 _managerFee, address _operator, bytes memory _signature) external payable returns (address);
+    function createFarm(Sf calldata _sf, uint256 _managerFee) external payable returns (address);
 
     function setCapacityPerFarm(uint256 _capacity) external;
 

@@ -31,8 +31,8 @@ contract SingleFarm is ISingleFarm, Initializable {
     address public USDC;
 
     address public factory;
-    address public manager;
-    address public operator;
+    address public manager; // Farm manager
+    address public operator; // Dex external account with link signer
     uint256 public endTime;
     uint256 public fundDeadline;
     uint256 public totalRaised;
@@ -43,6 +43,9 @@ contract SingleFarm is ISingleFarm, Initializable {
     mapping(address => uint256) public claimAmount;
     mapping(address => bool) public claimed;
     uint256 private managerFeeNumerator;
+
+    bool isLinkSigner;
+    uint256 maxFeePay;
 
     function initialize(
         ISingleFarmFactory.Sf calldata _sf,
@@ -60,6 +63,8 @@ contract SingleFarm is ISingleFarm, Initializable {
         fundDeadline = 72 hours;
         USDC = _usdc;
         isSeedsFarm = true;
+        isLinkSigner = false;
+        maxFeePay = 10000000; // 10e6
     }
 
     modifier onlyOwner() {
@@ -147,7 +152,7 @@ contract SingleFarm is ISingleFarm, Initializable {
 
         (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
         // Collect dex fee
-        totalRaised -= 2e6;
+        // totalRaised -= 2e6;
         usdc.approve(dex, totalRaised);
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
@@ -195,8 +200,8 @@ contract SingleFarm is ISingleFarm, Initializable {
 
         (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
         // Collect dex fee
-        totalRaised -= 2000000;
-        usdc.approve(dex, totalRaised + 1e6);
+        // totalRaised -= 2000000;
+        usdc.approve(dex, totalRaised);
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
@@ -205,6 +210,7 @@ contract SingleFarm is ISingleFarm, Initializable {
     }
 
     function setLinkSigner() public whenNotPaused {
+        if (isLinkSigner) revert HasLinkSigner();
         if(msg.sender != operator) revert NoAccess(operator, msg.sender);
 
         ISupportedDex supportedDex = ISupportedDex(factory);
@@ -212,8 +218,12 @@ contract SingleFarm is ISingleFarm, Initializable {
 
         (address dex,  bytes memory instruction) = dexHandler.linkSignerInstruction(address(this), operator);
 
+        (address feeToken, uint256 feeAmount) = dexHandler.getPaymentFee();
+        if (feeToken != USDC) revert InvalidToken(feeToken);
+        if (feeAmount > maxFeePay) revert InvalidFee(feeAmount);
+
         IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-        usdc.approve(dex, 1000000);
+        usdc.approve(dex, feeAmount);
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
@@ -231,8 +241,12 @@ contract SingleFarm is ISingleFarm, Initializable {
 
         (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
 
+        (address feeToken, uint256 feeAmount) = dexHandler.getPaymentFee();
+        if (feeToken != USDC) revert InvalidToken(feeToken);
+        if (feeAmount > maxFeePay) revert InvalidFee(feeAmount);
+
         IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-        usdc.approve(dex, 1000000);
+        usdc.approve(dex, feeAmount);
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();

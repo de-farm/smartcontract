@@ -33,10 +33,20 @@ import "../seeds/IDeFarmSeeds.sol";
 /// maker of the contract, used for creating new farm instance
 /// treasury of the contract, used for receiving fees
 contract SingleFarmFactory is
-    ISingleFarmFactory, IHasPausable, IDepositConfig, IHasSeedable,
-    OwnableUpgradeable, PausableUpgradeable, EIP712Upgradeable,
-    WhitelistedTokens, IHasAdministrable, Administrable, Makeable, ProtocolInfo,
-    ETHFee, SupportedDex
+    ISingleFarmFactory,
+    IHasPausable,
+    IDepositConfig,
+    IHasSeedable,
+    OwnableUpgradeable,
+    PausableUpgradeable,
+    EIP712Upgradeable,
+    WhitelistedTokens,
+    IHasAdministrable,
+    Administrable,
+    Makeable,
+    ProtocolInfo,
+    ETHFee,
+    SupportedDex
 {
     using ECDSAUpgradeable for bytes32;
 
@@ -69,7 +79,8 @@ contract SingleFarmFactory is
     address[] public deployedFarms;
     mapping(address => bool) public isFarm;
 
-    mapping(address => bool) public operators;
+    address[] public operators;
+    uint public currentOperatorIndex;
 
     /*//////////////////////////////////////////////////////////////
                             INITIALIZE
@@ -95,7 +106,7 @@ contract SingleFarmFactory is
     ) public initializer {
         __Ownable_init();
         __Pausable_init();
-        __EIP712_init("SingleFarmFactory","1");
+        __EIP712_init("SingleFarmFactory", "1");
 
         __Administrable_init();
         __Makeable_init();
@@ -117,6 +128,8 @@ contract SingleFarmFactory is
         maxManagerFee = 15e18;
         maxFundraisingPeriod = 1 weeks;
         deFarmSeeds = _deFarmSeeds;
+
+        currentOperatorIndex = 0;
 
         emit FarmFactoryInitialized(
             _singleFarmImplementation,
@@ -153,20 +166,18 @@ contract SingleFarmFactory is
     /// @return farm address of the proxy contract which is deployed
     function createFarm(
         Sf calldata _sf,
-        uint256 _managerFee,
-        address _operator,
-        bytes memory _signature
-    ) external override whenNotPaused payable returns (address farm) {
-        if(operators[_operator]) revert InvalidAddress(_operator);
-        operators[_operator] = true;
+        uint256 _managerFee
+    ) external payable override whenNotPaused returns (address farm) {
+        require(operators.length > 0, "No operators available");
+        address selectedOperator = operators[currentOperatorIndex];
+
+        // Move to the next address in a round-robin fashion
+        // TODO: don't care about safe math
+        currentOperatorIndex = (currentOperatorIndex + 1) % operators.length;
 
         // When the manager has initialized seeds before creating a farm
         if(IDeFarmSeeds(deFarmSeeds).balanceOf(msg.sender, msg.sender) == 0) revert ZeroSeedBalance();
-
-        // Verifying the correctness of the signature
-        if(getCreateFarmDigest(_operator, msg.sender)
-            .toEthSignedMessageHash().recover(_signature) != maker()) revert InvalidSignature(maker());
-
+        
         if (msg.value < ethFee()) revert BelowMin(ethFee(), msg.value);
         if (_managerFee > maxManagerFee) revert AboveMax(maxManagerFee, _managerFee);
         if (_sf.fundraisingPeriod < 15 minutes) revert BelowMin(15 minutes, _sf.fundraisingPeriod);
@@ -182,11 +193,13 @@ contract SingleFarmFactory is
             ClonesUpgradeable.clone(singleFarmImplementation),
             abi.encodeWithSignature(
                 "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,address)",
-                _sf, msg.sender, _managerFee, USDC, _operator
+                _sf,
+                msg.sender,
+                _managerFee,
+                USDC,
+                selectedOperator
             )
         );
-
-        payable(_operator).transfer(ethFee());
 
         farm = address(singleFarm);
         deployedFarms.push(farm);
@@ -204,7 +217,7 @@ contract SingleFarmFactory is
             msg.sender,
             _managerFee,
             FEE_DENOMINATOR,
-            _operator,
+            selectedOperator,
             block.timestamp
         );
     }
@@ -225,7 +238,9 @@ contract SingleFarmFactory is
     /// @notice set the min investment of collateral an investor can invest per farm
     /// @dev can only be called by the `owner`
     /// @param _amount min investment of collateral an investor can invest per farm
-    function setMinInvestmentAmount(uint256 _amount) external override onlyOwner {
+    function setMinInvestmentAmount(
+        uint256 _amount
+    ) external override onlyOwner {
         if (_amount < 1) revert ZeroAmount();
         minInvestmentAmount = _amount;
         emit MinInvestmentAmountChanged(_amount);
@@ -234,8 +249,11 @@ contract SingleFarmFactory is
     /// @notice set the max investment of collateral an investor can invest per farm
     /// @dev can only be called by the `owner`
     /// @param _amount max investment of collateral an investor can invest per farm
-    function setMaxInvestmentAmount(uint256 _amount) external override onlyOwner {
-        if (_amount <= minInvestmentAmount) revert BelowMin(minInvestmentAmount, _amount);
+    function setMaxInvestmentAmount(
+        uint256 _amount
+    ) external override onlyOwner {
+        if (_amount <= minInvestmentAmount)
+            revert BelowMin(minInvestmentAmount, _amount);
         maxInvestmentAmount = _amount;
         emit MaxInvestmentAmountChanged(_amount);
     }
@@ -258,8 +276,11 @@ contract SingleFarmFactory is
     /// @notice set the max fundraising period a manager can use when creating a farm
     /// @dev can only be called by the `owner`
     /// @param _maxFundraisingPeriod max fundraising period a manager can use when creating a farm
-    function setMaxFundraisingPeriod(uint256 _maxFundraisingPeriod) external onlyOwner {
-        if (_maxFundraisingPeriod < 15 minutes) revert BelowMin(15 minutes, _maxFundraisingPeriod);
+    function setMaxFundraisingPeriod(
+        uint256 _maxFundraisingPeriod
+    ) external onlyOwner {
+        if (_maxFundraisingPeriod < 15 minutes)
+            revert BelowMin(15 minutes, _maxFundraisingPeriod);
         maxFundraisingPeriod = _maxFundraisingPeriod;
         emit MaxFundraisingPeriodChanged(_maxFundraisingPeriod);
     }
@@ -267,8 +288,11 @@ contract SingleFarmFactory is
     /// @notice set the manager fee percent to calculate the manager fees on profits depending on the governance
     /// @dev can only be called by the `owner`
     /// @param newMaxManagerFee the percent which is used to calculate the manager fees on profits
-    function setMaxManagerFee(uint256 newMaxManagerFee) external override onlyOwner {
-        if (newMaxManagerFee > FEE_DENOMINATOR) revert AboveMax(FEE_DENOMINATOR, newMaxManagerFee);
+    function setMaxManagerFee(
+        uint256 newMaxManagerFee
+    ) external override onlyOwner {
+        if (newMaxManagerFee > FEE_DENOMINATOR)
+            revert AboveMax(FEE_DENOMINATOR, newMaxManagerFee);
         maxManagerFee = newMaxManagerFee;
         emit MaxManagerFeeChanged(newMaxManagerFee);
     }
@@ -294,6 +318,35 @@ contract SingleFarmFactory is
         deFarmSeeds = _deFarmSeeds;
     }
 
+    function addOperator(address _op) external onlyOwner {
+        operators.push(_op);
+        require(_op != address(0), "operator: invalid address");
+        require(!isOperatorExists(_op), "operator already exists");
+
+        operators.push(_op);
+    }
+
+    function removeOperator(address _op) external onlyOwner {
+        require(isOperatorExists(_op), "operator does not exist");
+
+        for (uint256 i = 0; i < operators.length; i++) {
+            if (operators[i] == _op) {
+                operators[i] = operators[operators.length - 1];
+                operators.pop();
+                return;
+            }
+        }
+    }
+
+    function isOperatorExists(address _op) public view returns (bool) {
+        for (uint256 i = 0; i < operators.length; i++) {
+            if (operators[i] == _op) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             WITHDRAW
     //////////////////////////////////////////////////////////////*/
@@ -301,11 +354,15 @@ contract SingleFarmFactory is
     /// @notice Transfer `Eth` or token from this contract to the `receiver` in case of emergency
     /// @dev Can be called only by the `owner`
     /// @param receiver address of the `receiver`
-    function withdraw(address receiver, bool isEth, address token, uint256 amount) external onlyAdmin returns (bool) {
-        if(isEth) {
+    function withdraw(
+        address receiver,
+        bool isEth,
+        address token,
+        uint256 amount
+    ) external onlyAdmin returns (bool) {
+        if (isEth) {
             payable(receiver).transfer(amount);
-        }
-        else {
+        } else {
             IERC20Upgradeable(token).transfer(receiver, amount);
         }
 
@@ -315,7 +372,7 @@ contract SingleFarmFactory is
     /*//////////////////////////////////////////////////////////////
                               VIEW
     //////////////////////////////////////////////////////////////*/
-    function getMaxManagerFee() public view returns(uint256, uint256) {
+    function getMaxManagerFee() public view returns (uint256, uint256) {
         return (maxManagerFee, FEE_DENOMINATOR);
     }
 
@@ -325,13 +382,7 @@ contract SingleFarmFactory is
     ) public view returns (bytes32) {
         return
             _hashTypedDataV4(
-                keccak256(
-                    abi.encode(
-                        CREATE_FARM_HASH,
-                        _operator,
-                        _manager
-                    )
-                )
+                keccak256(abi.encode(CREATE_FARM_HASH, _operator, _manager))
             );
     }
 

@@ -13,3 +13,6 @@ error InvalidAddress(address given);
 error InvalidLength(uint256 desired);
 error MakeInstructionFailure();
 error ExecutionCallFailure();
+error HasLinkSigner();
+error InvalidToken(address token);
+error InvalidFee(uint256 fee);
