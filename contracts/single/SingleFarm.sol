@@ -227,6 +227,7 @@ contract SingleFarm is ISingleFarm, Initializable {
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
+        isLinkSigner = true;
     }
 
     /// @notice allows the manager/operator to mark farm as closed
