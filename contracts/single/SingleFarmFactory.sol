@@ -177,7 +177,7 @@ contract SingleFarmFactory is
 
         // When the manager has initialized seeds before creating a farm
         if(IDeFarmSeeds(deFarmSeeds).balanceOf(msg.sender, msg.sender) == 0) revert ZeroSeedBalance();
-        
+
         if (msg.value < ethFee()) revert BelowMin(ethFee(), msg.value);
         if (_managerFee > maxManagerFee) revert AboveMax(maxManagerFee, _managerFee);
         if (_sf.fundraisingPeriod < 15 minutes) revert BelowMin(15 minutes, _sf.fundraisingPeriod);
@@ -319,7 +319,6 @@ contract SingleFarmFactory is
     }
 
     function addOperator(address _op) external onlyOwner {
-        operators.push(_op);
         require(_op != address(0), "operator: invalid address");
         require(!isOperatorExists(_op), "operator already exists");
 
