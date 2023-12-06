@@ -349,7 +349,11 @@ contract SingleFarm is ISingleFarm, Initializable {
     /// @param _newOperator new `operator` of the farm
     function setOperator(address _newOperator) external onlyOwner {
         if(_newOperator == address(0)) revert ZeroAddress();
+        if (_newOperator == operator) {
+            return;
+        }
         operator = _newOperator;
+        isLinkSigner = false;
         emit OperatorUpdated(msg.sender, operator);
     }
 
