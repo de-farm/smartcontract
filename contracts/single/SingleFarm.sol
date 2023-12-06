@@ -93,6 +93,11 @@ contract SingleFarm is ISingleFarm, Initializable {
         _;
     }
 
+    modifier whenLinkedSigner() {
+        require(isLinkSigner, "farm is not linked with a signer");
+        _;
+    }
+
     /// @notice deposit a particular amount into a farm for the manager to open a position
     /// @dev `fundraisingPeriod` has to end and the `totalRaised` should not be more than `capacityPerFarm`
     /// @dev amount has to be between `minInvestmentAmount` and `maxInvestmentAmount`
@@ -123,7 +128,7 @@ contract SingleFarm is ISingleFarm, Initializable {
 
     /// @notice allows the manager to end the `fundraisingPeriod` early and open a market position
     /// @dev transfers the `totalRaised` usdc of the farm to the operator
-    function closeFundraisingAndOpenPosition(bytes memory info) external openOnce whenNotPaused {
+    function closeFundraisingAndOpenPosition(bytes memory info) external openOnce whenNotPaused whenLinkedSigner {
         if(msg.sender != manager) revert NoAccess(manager, msg.sender);
 
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
@@ -173,7 +178,7 @@ contract SingleFarm is ISingleFarm, Initializable {
         emit FundraisingClosed();
     }
 
-    function openPosition(bytes memory info) external override openOnce whenNotPaused {
+    function openPosition(bytes memory info) external override openOnce whenNotPaused whenLinkedSigner {
         if(msg.sender != manager) revert NoAccess(manager, msg.sender);
 
         if (endTime > block.timestamp) revert StillFundraising(endTime, block.timestamp);
@@ -233,7 +238,7 @@ contract SingleFarm is ISingleFarm, Initializable {
     /// @notice allows the manager/operator to mark farm as closed
     /// @dev can be called only if theres a position already open
     /// @dev `status` will be `PositionClosed`
-    function closePosition() external override whenNotPaused {
+    function closePosition() external override whenNotPaused whenLinkedSigner {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.OPENED) revert NoOpenPositions();
 
