@@ -233,12 +233,15 @@ contract SingleFarm is ISingleFarm, Initializable {
     /// @notice allows the manager/operator to mark farm as closed
     /// @dev can be called only if theres a position already open
     /// @dev `status` will be `PositionClosed`
-    function closePosition(uint256 balance) external override whenNotPaused {
+    function closePosition() external override whenNotPaused {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.OPENED) revert NoOpenPositions();
 
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        uint256 balance = dexHandler.getBalance(address(this), USDC);
+        if (balance < 1) revert ZeroTokenBalance();
 
         (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
 

@@ -23,6 +23,7 @@ import "../utils/ETHFee.sol";
 import "../utils/SupportedDex.sol";
 import "../utils/ProtocolInfo.sol";
 import "../utils/Constants.sol";
+import "../utils/OperatorManager.sol";
 import "../interfaces/IHasSeedable.sol";
 import "../seeds/IDeFarmSeeds.sol";
 
@@ -46,7 +47,8 @@ contract SingleFarmFactory is
     Makeable,
     ProtocolInfo,
     ETHFee,
-    SupportedDex
+    SupportedDex,
+    OperatorManager
 {
     using ECDSAUpgradeable for bytes32;
 
@@ -79,7 +81,6 @@ contract SingleFarmFactory is
     address[] public deployedFarms;
     mapping(address => bool) public isFarm;
 
-    address[] public operators;
     uint public currentOperatorIndex;
 
     /*//////////////////////////////////////////////////////////////
@@ -113,6 +114,7 @@ contract SingleFarmFactory is
         __ProtocolInfo_init(5e18);
         __ETHFee_init();
         __SupportedDex_init(_dexHandler);
+        __OperatorManager_init(owner());
 
         if (_singleFarmImplementation == address(0)) revert ZeroAddress();
         if (_usdc == address(0)) revert ZeroAddress();
@@ -168,12 +170,12 @@ contract SingleFarmFactory is
         Sf calldata _sf,
         uint256 _managerFee
     ) external payable override whenNotPaused returns (address farm) {
-        require(operators.length > 0, "No operators available");
-        address selectedOperator = operators[currentOperatorIndex];
+        require(numberOperators() > 0, "No operators available");
+        address selectedOperator = getOperator(currentOperatorIndex);
 
         // Move to the next address in a round-robin fashion
         // TODO: don't care about safe math
-        currentOperatorIndex = (currentOperatorIndex + 1) % operators.length;
+        currentOperatorIndex = (currentOperatorIndex + 1) % numberOperators();
 
         // When the manager has initialized seeds before creating a farm
         if(IDeFarmSeeds(deFarmSeeds).balanceOf(msg.sender, msg.sender) == 0) revert ZeroSeedBalance();
@@ -316,34 +318,6 @@ contract SingleFarmFactory is
 
     function setDeFarmSeeds(address _deFarmSeeds) external onlyOwner {
         deFarmSeeds = _deFarmSeeds;
-    }
-
-    function addOperator(address _op) external onlyOwner {
-        require(_op != address(0), "operator: invalid address");
-        require(!isOperatorExists(_op), "operator already exists");
-
-        operators.push(_op);
-    }
-
-    function removeOperator(address _op) external onlyOwner {
-        require(isOperatorExists(_op), "operator does not exist");
-
-        for (uint256 i = 0; i < operators.length; i++) {
-            if (operators[i] == _op) {
-                operators[i] = operators[operators.length - 1];
-                operators.pop();
-                return;
-            }
-        }
-    }
-
-    function isOperatorExists(address _op) public view returns (bool) {
-        for (uint256 i = 0; i < operators.length; i++) {
-            if (operators[i] == _op) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /*//////////////////////////////////////////////////////////////

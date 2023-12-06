@@ -30,6 +30,11 @@ contract DexSimulator is OwnableUpgradeable, IDexHandler {
         return balances[wallet];
     }
 
+    function getBalance(address wallet, address token) external view returns (uint256) {
+        if (token == address(0)) revert InvalidToken(token);
+        return uint256(balances[wallet]);
+    }
+
     function deposit(
         address asset,
         uint256 amount

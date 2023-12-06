@@ -3,15 +3,18 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
 import "./Errors.sol";
 import "../interfaces/vertex/IEndpoint.sol";
 import "../interfaces/vertex/IFQuerier.sol";
+import "../interfaces/vertex/IEngine.sol";
 import "../interfaces/IDexHandler.sol";
 
 contract VertexHandler is Initializable, IDexHandler {
     using SafeMathUpgradeable for int256;
+    using MathUpgradeable for uint256;
 
     // name is 'default'
     bytes12 constant DEFAULT_SUBACCOUNT = hex"64656661756c740000000000";
@@ -209,7 +212,17 @@ contract VertexHandler is Initializable, IDexHandler {
         balance = int256(perpBalance.balance.amount)*int256(perpProduct.oraclePriceX18)/1e18 + perpBalance.balance.vQuoteBalance;
     }
 
-    function getPaymentFee()external view returns (address, uint256) {
+    function getPaymentFee() external view returns (address, uint256) {
         return (paymentToken, slowModeFee);
+    }
+
+    function getBalance(address wallet, address token) external view returns (uint256) {
+        bytes32 subaccount = addressToSubaccount(wallet);
+        uint32 productId = findSpotProductId(token);
+        IEngine.Balance memory balance = IEngine(
+                IClearinghouse(IEndpoint(vertexEndpoint).clearinghouse()).getEngineByProduct(productId)
+            ).getBalance(productId, subaccount);
+        uint256 decimals = 10 ** (18 - IERC20MetadataUpgradeable(token).decimals());
+        return decimals == 1 ? uint256(balance.amount) : uint256(balance.amount).ceilDiv(decimals);
     }
 }
