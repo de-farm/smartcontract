@@ -9,7 +9,7 @@ export interface ChainConfig {
 
 export const getChainConfig = (networkName: string): ChainConfig => {
     switch(networkName) {
-        case "arbitrumSopelia":
+        case "arbitrumSepolia":
             // https://docs.chain.link/data-feeds/price-feeds/addresses?network=arbitrum#Arbitrum%20Sopelia
             return {
                 whitelistedTokens: [

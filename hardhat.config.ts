@@ -17,7 +17,7 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8545",
       timeout: 600000,
     },
-    arbitrumSopelia : {
+    arbitrumSepolia : {
       url: `https://sepolia-rollup.arbitrum.io/rpc`,
       chainId: 421614,
       accounts: process.env.OWNER_PRIVATE_KEY
@@ -28,11 +28,11 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
-      arbitrumSopelia : process.env.ARBISCAN_API_KEY || "Q64QDZTGG8Q5R97T6E2K2ZD2638NDSPFKM",
+      arbitrumSepolia : process.env.ARBISCAN_API_KEY || "Q64QDZTGG8Q5R97T6E2K2ZD2638NDSPFKM",
     },
     customChains: [
       {
-        network: "arbitrumSopelia",
+        network: "arbitrumSepolia",
         chainId: 421614,
         urls: {
           apiURL: "https://api-sepolia.arbiscan.io/api",
@@ -66,7 +66,7 @@ const config: HardhatUserConfig = {
   abiExporter: {
     path: "./abi",
     clear: true,
-    flat: true,
+    flat: false,
     only: [
       "SingleFarmFactory",
       "SingleFarm",

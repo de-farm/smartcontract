@@ -10,7 +10,7 @@ yarn compile
 
 ## Deploy
 ```bash
-yarn deploy:arbitrumSopelia
+yarn deploy:arbitrumSepolia
 ```
 
 ## Setting the configuration
@@ -20,13 +20,13 @@ yarn deploy:arbitrumSopelia
 
 ## Verify the smart contracts
 ```bash
-verify:reader:arbitrumSopelia
+verify:reader:arbitrumSepolia
 ```
 
 ```bash
-verify:df:arbitrumSopelia
+verify:df:arbitrumSepolia
 ```
 
 ```bash
-verify:stvault:arbitrumSopelia
+verify:stvault:arbitrumSepolia
 ```

@@ -4,6 +4,8 @@ import { getSingleFarmConfig } from "../../config/singleFarm.config";
 async function main() {
   const singleFarmConfig = getSingleFarmConfig(network.name);
 
+  console.log('SingleFarm config: ', singleFarmConfig);
+
   const SingleFarm = await ethers.getContractFactory("SingleFarm");
   const singleFarm = await SingleFarm.deploy()
   if(network.name !== "localhost") {

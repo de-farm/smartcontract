@@ -11,7 +11,7 @@ export interface ChainConfig {
 
 export const getChainConfig = (networkName: string): ChainConfig => {
     switch(networkName) {
-        case "arbitrumSopelia":
+        case "arbitrumSepolia":
             return {
                 usdToken: '0xbC47901f4d2C5fc871ae0037Ea05c3F614690781',
                 usdDecimals: 6,
