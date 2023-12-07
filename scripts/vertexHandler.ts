@@ -5,7 +5,7 @@ import { getChainConfig } from "../config/vertexHandler.config";
 async function main() {
   const config = getChainConfig(network.name);
 
-  const VertexHandler = await ethers.getContractFactory("contracts/utils/VertexHandler.sol:VertexHandler");
+  const VertexHandler = await ethers.getContractFactory("VertexHandler");
   const vertexHandler = await upgrades.deployProxy(
     VertexHandler, [config.endpoint, config.querier, config.slowModeFee]
   );
