@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 
 import "../utils/Constants.sol";
 import "../utils/Errors.sol";
@@ -22,7 +24,9 @@ import "../interfaces/IDexHandler.sol";
 
 /// @title SingleFarm
 /// @notice Contract for the investors to deposit and for managers to open and close positions
-contract SingleFarm is ISingleFarm, Initializable {
+contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
+    using ECDSAUpgradeable for bytes32;
+    
     bool private calledOpen;
     bool public isSeedsFarm;
 
@@ -216,7 +220,8 @@ contract SingleFarm is ISingleFarm, Initializable {
 
     function setLinkSigner() public whenNotPaused {
         if (isLinkSigner) revert HasLinkSigner();
-        if(msg.sender != operator) revert NoAccess(operator, msg.sender);
+        require(msg.sender == operator || msg.sender == IHasOwnable(factory).owner() 
+        || msg.sender == IHasAdministrable(factory).admin(), "no access");
 
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
@@ -238,9 +243,13 @@ contract SingleFarm is ISingleFarm, Initializable {
     /// @notice allows the manager/operator to mark farm as closed
     /// @dev can be called only if theres a position already open
     /// @dev `status` will be `PositionClosed`
-    function closePosition() external override whenNotPaused whenLinkedSigner {
+    function closePosition(bytes memory _signature) external override whenNotPaused whenLinkedSigner {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.OPENED) revert NoOpenPositions();
+
+        // Verifying the correctness of the signature. Ensure position has closed on dex.
+        if(getClosePositionDigest(address(this))
+            .toEthSignedMessageHash().recover(_signature) != operator) revert InvalidSignature(operator);
 
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
@@ -395,6 +404,20 @@ contract SingleFarm is ISingleFarm, Initializable {
     /*//////////////////////////////////////////////////////////////
                               VIEW
     //////////////////////////////////////////////////////////////*/
+
+    function getClosePositionDigest(
+        address _farm
+    ) public view returns (bytes32) {
+        return
+            _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        CLOSE_POSITION_HASH,
+                        _farm
+                    )
+                )
+            );
+    }
 
     function getInfo()
         external

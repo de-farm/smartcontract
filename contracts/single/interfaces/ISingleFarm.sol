@@ -38,7 +38,7 @@ interface ISingleFarm {
     function closeFundraisingAndOpenPosition(bytes memory info) external;
     function closeFundraising() external;
     function openPosition(bytes memory info) external;
-    function closePosition() external;
+    function closePosition(bytes memory _signature) external;
     function cancelByAdmin() external;
     function cancelByManager() external;
     function liquidate() external;

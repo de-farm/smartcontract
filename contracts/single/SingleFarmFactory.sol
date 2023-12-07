@@ -114,7 +114,7 @@ contract SingleFarmFactory is
         __ProtocolInfo_init(5e18);
         __ETHFee_init();
         __SupportedDex_init(_dexHandler);
-        __OperatorManager_init(owner());
+        __OperatorManager_init();
 
         if (_singleFarmImplementation == address(0)) revert ZeroAddress();
         if (_usdc == address(0)) revert ZeroAddress();

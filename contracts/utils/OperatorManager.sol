@@ -2,29 +2,22 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "../interfaces/IOperatorManager.sol";
 
-abstract contract OperatorManager is IOperatorManager, Initializable {
+abstract contract OperatorManager is
+    IOperatorManager,
+    Initializable,
+    OwnableUpgradeable
+{
     event OperatorAdded(address);
     event OperatorRemoved(address);
-
-    address public manager;
 
     address[] private _operators;
     mapping(address => uint256) private _indexes;
 
-    function __OperatorManager_init(
-        address _manager
-    ) internal onlyInitializing {
-        require(_manager != address(0), "Invalid manager address");
-        manager = _manager;
-    }
-
-    modifier onlyManager() {
-        require(msg.sender == manager, "only manager");
-        _;
-    }
+    function __OperatorManager_init() internal onlyInitializing {}
 
     function hasOperator(address op) public view returns (bool) {
         return _indexes[op] != 0;
@@ -39,24 +32,24 @@ abstract contract OperatorManager is IOperatorManager, Initializable {
         return _operators[index];
     }
 
-    function addOperator(address op) external onlyManager {
+    function addOperator(address op) external onlyOwner {
         if (hasOperator(op)) return;
         _addOperator(op);
     }
 
-    function removeOperator(address op) external onlyManager {
+    function removeOperator(address op) external onlyOwner {
         if (!hasOperator(op)) return;
         _removeOperator(op);
     }
 
-    function removeOperators(address[] memory ops) external onlyManager {
+    function removeOperators(address[] memory ops) external onlyOwner {
         for (uint256 i = 0; i < ops.length; ++i) {
             if (hasOperator(ops[i])) continue;
             _removeOperator(ops[i]);
         }
     }
 
-    function addOperators(address[] memory ops) external onlyManager {
+    function addOperators(address[] memory ops) external onlyOwner {
         for (uint256 i = 0; i < ops.length; ++i) {
             if (hasOperator(ops[i])) continue;
             _addOperator(ops[i]);

@@ -2,8 +2,6 @@
 pragma solidity ^0.8.0;
 
 interface IOperatorManager {
-    function manager() external view returns (address);
-
     function getOperators() external view returns (address[] memory);
 
     function getOperator(uint256 index) external view returns (address);
