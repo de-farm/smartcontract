@@ -49,7 +49,8 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     uint256 private managerFeeNumerator;
 
     bool isLinkSigner;
-    uint256 maxFeePay;
+    uint256 public maxFeePay;
+    uint256 public dexFee;
 
     function initialize(
         ISingleFarmFactory.Sf calldata _sf,
@@ -69,6 +70,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         isSeedsFarm = true;
         isLinkSigner = false;
         maxFeePay = 10000000; // 10e6
+        dexFee = 2000000; // 2e6
     }
 
     modifier onlyOwner() {
@@ -154,14 +156,14 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
             usdc.transfer(protocolInfo.treasury(), _protocolFee);
         }
 
+        if(totalRaised - dexFee < 1) revert NotEnoughFund();
+        totalRaised -= dexFee;
+
         if(operator == address(0)) revert ZeroAddress();
-        // usdc.transfer(operator, totalRaised);
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
         (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
-        // Collect dex fee
-        // totalRaised -= 2e6;
         usdc.approve(dex, totalRaised);
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
@@ -202,14 +204,15 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
             usdc.transfer(protocolInfo.treasury(), _protocolFee);
         }
 
+        if(totalRaised - dexFee < 1) revert NotEnoughFund();
+        totalRaised -= dexFee;
+
         if(operator == address(0)) revert ZeroAddress();
 
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
         (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
-        // Collect dex fee
-        // totalRaised -= 2000000;
         usdc.approve(dex, totalRaised);
 
         (bool success, ) = dex.call(instruction);
@@ -303,6 +306,11 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     function setSeedsFarm(bool enable) external onlyOwner {
         isSeedsFarm = enable;
         emit SeedsFarmChanged(enable);
+    }
+
+    function setDexFee(uint256 fee) external onlyOwner {
+        dexFee = fee;
+        emit DexFeeChanged(fee);
     }
 
     /// @notice set the `fundDeadline` for a particular farm to cancel the farm early if needed

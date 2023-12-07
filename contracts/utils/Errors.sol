@@ -16,3 +16,4 @@ error ExecutionCallFailure();
 error HasLinkSigner();
 error InvalidToken(address token);
 error InvalidFee(uint256 fee);
+error NotEnoughFund();
