@@ -66,7 +66,7 @@ const config: HardhatUserConfig = {
   abiExporter: {
     path: "./abi",
     clear: true,
-    flat: false,
+    flat: true,
     only: [
       "SingleFarmFactory",
       "SingleFarm",

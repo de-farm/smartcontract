@@ -226,6 +226,9 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         require(msg.sender == operator || msg.sender == IHasOwnable(factory).owner() 
         || msg.sender == IHasAdministrable(factory).admin(), "no access");
 
+        // Ensure farm is end fundraising
+        if (endTime > block.timestamp) revert StillFundraising(endTime, block.timestamp);
+
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
