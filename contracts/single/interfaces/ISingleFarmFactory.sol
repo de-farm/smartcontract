@@ -13,7 +13,6 @@ interface ISingleFarmFactory {
         uint256 maxManagerFeeDenominator,
         address usdc,
         address admin,
-        address maker,
         address treasury
     );
 

@@ -18,7 +18,6 @@ import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasAdministrable.sol";
 import "../utils/WhitelistedTokens.sol";
 import "../utils/Administrable.sol";
-import "../utils/Makeable.sol";
 import "../utils/ETHFee.sol";
 import "../utils/SupportedDex.sol";
 import "../utils/ProtocolInfo.sol";
@@ -28,8 +27,7 @@ import "../utils/OperatorManager.sol";
 /// @title SingleFarm Factory
 /// @notice Contract for managers create a new instance
 /// owner of the contract, used for setting and updating the logic changes
-/// admin of the contract, used for updating the particular farms
-/// maker of the contract, used for creating new farm instance
+/// admin of the contract, used for creating new farm instance
 /// treasury of the contract, used for receiving fees
 contract SingleFarmFactory is
     ISingleFarmFactory,
@@ -41,7 +39,6 @@ contract SingleFarmFactory is
     WhitelistedTokens,
     IHasAdministrable,
     Administrable,
-    Makeable,
     ProtocolInfo,
     ETHFee,
     SupportedDex,
@@ -104,7 +101,6 @@ contract SingleFarmFactory is
         __EIP712_init("SingleFarmFactory", "1");
 
         __Administrable_init();
-        __Makeable_init();
         __ProtocolInfo_init(5e18);
         __ETHFee_init();
         __SupportedDex_init(_dexHandler);
@@ -137,7 +133,6 @@ contract SingleFarmFactory is
             FEE_DENOMINATOR,
             _usdc,
             admin(),
-            maker(),
             treasury()
         );
     }
