@@ -6,7 +6,6 @@ export interface ChainConfig {
     usdDecimals: number;
     baseTokens: {address: string, decimals: number}[];
     dexHandler: string;
-    defarmSeeds: string;
 }
 
 export const getChainConfig = (networkName: string): ChainConfig => {
@@ -27,8 +26,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                         decimals: 18,
                     },
                 ],
-                dexHandler: '0xDe922034e83694eF01261bdA646038de50f2EFf5',
-                defarmSeeds: '0x16bfC2c47902C4F2904655342AfFC48Aa2DE8A45'
+                dexHandler: '0x663c959f6aD7670d13b0115A60Ec0CE595bc86c1',
             }
             break
         default:
@@ -42,7 +40,6 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     }
                 ],
                 dexHandler: '',
-                defarmSeeds: ''
             }
     }
 }
@@ -56,7 +53,6 @@ export interface SingeFarmConfig {
     baseTokens: string[];
     admin: string | undefined;
     maker: string | undefined;
-    defarmSeeds: string;
     dexHandler: string;
 }
 
@@ -68,11 +64,10 @@ export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
         minInvestmentAmount: parseUnits("10", chainConfig.usdDecimals),
         maxInvestmentAmount: parseUnits("1000", chainConfig.usdDecimals),
         maxLeverage: parseUnits("10", 6),
-        admin: '0xf58FcFb8ccDb1878823Bd6b473d7799468ACeBf5',
+        admin: '0x91D02f1803BE80f62d7B7d4d031c0E9d778bc3e3',
         maker: '0xb66c1e96a3675bbfb8d13df329033f84a3c00c9f',
         usdToken: chainConfig.usdToken,
         baseTokens: chainConfig.baseTokens.map(token => token.address),
-        defarmSeeds: chainConfig.defarmSeeds,
         dexHandler: chainConfig.dexHandler
     }
 }

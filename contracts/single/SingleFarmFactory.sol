@@ -24,8 +24,6 @@ import "../utils/SupportedDex.sol";
 import "../utils/ProtocolInfo.sol";
 import "../utils/Constants.sol";
 import "../utils/OperatorManager.sol";
-import "../interfaces/IHasSeedable.sol";
-import "../seeds/IDeFarmSeeds.sol";
 
 /// @title SingleFarm Factory
 /// @notice Contract for managers create a new instance
@@ -37,7 +35,6 @@ contract SingleFarmFactory is
     ISingleFarmFactory,
     IHasPausable,
     IDepositConfig,
-    IHasSeedable,
     OwnableUpgradeable,
     PausableUpgradeable,
     EIP712Upgradeable,
@@ -76,8 +73,6 @@ contract SingleFarmFactory is
     // max fundraising period which can be used by the manager to raise funds (defaults - 1 week)
     uint256 public maxFundraisingPeriod;
 
-    address public deFarmSeeds;
-
     address[] public deployedFarms;
     mapping(address => bool) public isFarm;
 
@@ -102,8 +97,7 @@ contract SingleFarmFactory is
         uint256 _minInvestmentAmount,
         uint256 _maxInvestmentAmount,
         uint256 _maxLeverage,
-        address _usdc,
-        address _deFarmSeeds
+        address _usdc
     ) public initializer {
         __Ownable_init();
         __Pausable_init();
@@ -129,7 +123,6 @@ contract SingleFarmFactory is
         USDC = _usdc;
         maxManagerFee = 15e18;
         maxFundraisingPeriod = 1 weeks;
-        deFarmSeeds = _deFarmSeeds;
 
         currentOperatorIndex = 0;
 
@@ -176,9 +169,6 @@ contract SingleFarmFactory is
         // Move to the next address in a round-robin fashion
         // TODO: don't care about safe math
         currentOperatorIndex = (currentOperatorIndex + 1) % numberOperators();
-
-        // When the manager has initialized seeds before creating a farm
-        if(IDeFarmSeeds(deFarmSeeds).balanceOf(msg.sender, msg.sender) == 0) revert ZeroSeedBalance();
 
         if (msg.value < ethFee()) revert BelowMin(ethFee(), msg.value);
         if (_managerFee > maxManagerFee) revert AboveMax(maxManagerFee, _managerFee);
@@ -314,10 +304,6 @@ contract SingleFarmFactory is
         if (_usdc == address(0)) revert ZeroAddress();
         USDC = _usdc;
         emit UsdcAddressChanged(_usdc);
-    }
-
-    function setDeFarmSeeds(address _deFarmSeeds) external onlyOwner {
-        deFarmSeeds = _deFarmSeeds;
     }
 
     /*//////////////////////////////////////////////////////////////

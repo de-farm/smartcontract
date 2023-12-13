@@ -71,6 +71,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         isLinkSigner = false;
         maxFeePay = 10000000; // 10e6
         dexFee = 2000000; // 2e6
+        status = SfStatus.NOT_OPENED;
     }
 
     modifier onlyOwner() {
@@ -111,6 +112,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     /// @param amount amount the investor wants to deposit
     function deposit(uint256 amount) external override whenNotPaused {
         if (block.timestamp > endTime) revert AboveMax(endTime, block.timestamp);
+        if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
 
         IHasSeedable seedable = IHasSeedable(factory);
         if(isSeedsFarm == true && IDeFarmSeeds(seedable.deFarmSeeds()).balanceOf(msg.sender, manager) == 0) revert ZeroSeedBalance();
@@ -120,7 +122,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         if (userAmount[msg.sender] + amount > depositConfig.maxInvestmentAmount()) {
             revert AboveMax(depositConfig.maxInvestmentAmount(), userAmount[msg.sender] + amount);
         }
-        if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
         if (totalRaised + amount > depositConfig.capacityPerFarm()) revert AboveMax(depositConfig.capacityPerFarm(), totalRaised + amount);
 
         IERC20Upgradeable(USDC).transferFrom(msg.sender, address(this), amount);
