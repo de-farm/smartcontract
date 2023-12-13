@@ -24,7 +24,6 @@ async function main() {
       singleFarmConfig.maxInvestmentAmount,
       singleFarmConfig.maxLeverage,
       singleFarmConfig.usdToken,
-      singleFarmConfig.defarmSeeds
     ]
   )
 
