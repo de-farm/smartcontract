@@ -17,8 +17,6 @@ import "../interfaces/IHasOwnable.sol";
 import {IHasAdministrable} from "../interfaces/IHasAdministrable.sol";
 import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasProtocolInfo.sol";
-import "../interfaces/IHasSeedable.sol";
-import "../seeds/IDeFarmSeeds.sol";
 import "../interfaces/ISupportedDex.sol";
 import "../interfaces/IDexHandler.sol";
 
@@ -28,7 +26,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     using ECDSAUpgradeable for bytes32;
     
     bool private calledOpen;
-    bool public isSeedsFarm;
 
     ISingleFarmFactory.Sf public sf;
 
@@ -67,7 +64,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         endTime = block.timestamp + _sf.fundraisingPeriod;
         fundDeadline = 72 hours;
         USDC = _usdc;
-        isSeedsFarm = true;
         isLinkSigner = false;
         maxFeePay = 10000000; // 10e6
         dexFee = 2000000; // 2e6
@@ -113,9 +109,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     function deposit(uint256 amount) external override whenNotPaused {
         if (block.timestamp > endTime) revert AboveMax(endTime, block.timestamp);
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
-
-        IHasSeedable seedable = IHasSeedable(factory);
-        if(isSeedsFarm == true && IDeFarmSeeds(seedable.deFarmSeeds()).balanceOf(msg.sender, manager) == 0) revert ZeroSeedBalance();
 
         IDepositConfig depositConfig = IDepositConfig(factory);
         if (amount <  depositConfig.minInvestmentAmount()) revert BelowMin(depositConfig.minInvestmentAmount(), amount);
@@ -305,11 +298,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         status = SfStatus.CANCELLED;
 
         emit Cancelled();
-    }
-
-    function setSeedsFarm(bool enable) external onlyOwner {
-        isSeedsFarm = enable;
-        emit SeedsFarmChanged(enable);
     }
 
     function setDexFee(uint256 fee) external onlyOwner {

@@ -32,7 +32,6 @@ interface ISingleFarm {
     event TotalRaisedUpdated(address indexed by, uint256 totalRaised);
     event RemainingBalanceUpdated(address indexed by, uint256 remainingBalance);
     event OperatorUpdated(address indexed by, address operator);
-    event SeedsFarmChanged(bool enable);
     event DexFeeChanged(uint256 fee);
 
     function deposit(uint256 amount) external;
