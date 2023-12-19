@@ -159,7 +159,7 @@ contract SingleFarmFactory is
         uint256 _managerFee
     ) external payable override whenNotPaused returns (address farm) {
         require(numberOperators() > 0, "No operators available");
-        address selectedOperator = getOperator(currentOperatorIndex);
+        address selectedOperator = getOperator(currentOperatorIndex % numberOperators());
 
         // Move to the next address in a round-robin fashion
         // TODO: don't care about safe math

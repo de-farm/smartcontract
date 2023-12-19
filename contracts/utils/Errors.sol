@@ -15,5 +15,5 @@ error MakeInstructionFailure();
 error ExecutionCallFailure();
 error HasLinkSigner();
 error InvalidToken(address token);
-error InvalidFee(uint256 fee);
+error FeeTooHigh(uint256 fee);
 error NotEnoughFund();

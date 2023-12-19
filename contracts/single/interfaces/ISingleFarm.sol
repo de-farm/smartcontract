@@ -19,7 +19,6 @@ interface ISingleFarm {
     }
 
     event Deposited(address indexed investor, uint256 amount);
-    event FundraisingClosedAndPositionOpened(bytes info);
     event FundraisingClosed();
     event PositionOpened(bytes info);
     event PositionClosed();
@@ -27,15 +26,14 @@ interface ISingleFarm {
     event Liquidated();
     event Claimed(address investor, uint256 amount);
     event FundDeadlineChanged(uint256 fundDeadline);
+    event LinkedSigner(address sender, address signer);
 
     event StatusUpdated(address indexed by, ISingleFarm.SfStatus status);
     event TotalRaisedUpdated(address indexed by, uint256 totalRaised);
     event RemainingBalanceUpdated(address indexed by, uint256 remainingBalance);
     event OperatorUpdated(address indexed by, address operator);
-    event DexFeeChanged(uint256 fee);
 
     function deposit(uint256 amount) external;
-    function closeFundraisingAndOpenPosition(bytes memory info) external;
     function closeFundraising() external;
     function openPosition(bytes memory info) external;
     function closePosition(bytes memory _signature) external;
