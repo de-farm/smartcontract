@@ -52,7 +52,6 @@ export interface SingeFarmConfig {
     usdToken: string;
     baseTokens: string[];
     admin: string | undefined;
-    maker: string | undefined;
     dexHandler: string;
 }
 
@@ -65,7 +64,6 @@ export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
         maxInvestmentAmount: parseUnits("1000", chainConfig.usdDecimals),
         maxLeverage: parseUnits("10", 6),
         admin: '0x91D02f1803BE80f62d7B7d4d031c0E9d778bc3e3',
-        maker: '0xb66c1e96a3675bbfb8d13df329033f84a3c00c9f',
         usdToken: chainConfig.usdToken,
         baseTokens: chainConfig.baseTokens.map(token => token.address),
         dexHandler: chainConfig.dexHandler

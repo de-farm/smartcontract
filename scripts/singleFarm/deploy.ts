@@ -41,10 +41,6 @@ async function main() {
     await factory.setAdmin(singleFarmConfig.admin);
   }
 
-  if(singleFarmConfig.maker) {
-    await factory.setMaker(singleFarmConfig.maker);
-  }
-
   if(singleFarmConfig.baseTokens.length > 0)
     await factory.addTokens(singleFarmConfig.baseTokens)
 }
