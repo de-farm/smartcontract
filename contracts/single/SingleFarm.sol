@@ -168,10 +168,12 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         if (feeToken != USDC) revert InvalidToken(feeToken);
         if (feeAmount > maxFeePay) revert FeeTooHigh(feeAmount);
 
-        if (totalRaised <= feeAmount) revert NotEnoughFund();
+        uint256 feePadding = 2 * feeAmount;
+
+        if (totalRaised <= feePadding) revert NotEnoughFund();
         // Holds fee amount needs for withdraw when closePosition
-        totalRaised -= feeAmount;
-        holdWithdrawFee = feeAmount;
+        totalRaised -= feePadding;
+        holdWithdrawFee = feePadding;
 
         (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
         usdc.approve(dex, totalRaised);
