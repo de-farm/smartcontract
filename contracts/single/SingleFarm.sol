@@ -130,11 +130,13 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     /// @dev changes the `endTime` to the current `block.timestamp`
     function closeFundraising() external override whenNotPaused {
         if (manager != msg.sender) revert NoAccess(manager, msg.sender);
+        if (fundraisingClosed) revert HasClosedFundraising();
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
         if (totalRaised < 1) revert ZeroAmount();
         // if (block.timestamp < endTime) revert CantClose();
 
         endTime = block.timestamp;
+        fundraisingClosed = true;
 
         emit FundraisingClosed();
     }
