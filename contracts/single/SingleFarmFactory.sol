@@ -101,7 +101,7 @@ contract SingleFarmFactory is
         __EIP712_init("SingleFarmFactory", "1");
 
         __Administrable_init();
-        __ProtocolInfo_init(5e18);
+        __ProtocolInfo_init(1e18);
         __ETHFee_init();
         __SupportedDex_init(_dexHandler);
         __OperatorManager_init();

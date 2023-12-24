@@ -81,7 +81,7 @@ contract VertexHandler is Initializable, IDexHandler {
         });
 
         // https://github.com/vertex-protocol/vertex-contracts/blob/main/contracts/interfaces/IEndpoint.sol#L31
-        bytes memory data = abi.encodePacked(uint8(19), abi.encode(linkSigner));
+        bytes memory data = abi.encodePacked(uint8(IEndpoint.TransactionType.LinkSigner), abi.encode(linkSigner));
         bytes memory instruction = abi.encodeWithSignature("submitSlowModeTransaction(bytes)", data);
         return (vertexEndpoint, instruction);
     }
@@ -96,7 +96,7 @@ contract VertexHandler is Initializable, IDexHandler {
             nonce: 0
         });
         // https://github.com/vertex-protocol/vertex-contracts/blob/main/contracts/interfaces/IEndpoint.sol#L14
-        bytes memory data = abi.encodePacked(uint8(2), abi.encode(withdrawal));
+        bytes memory data = abi.encodePacked(uint8(IEndpoint.TransactionType.WithdrawCollateral), abi.encode(withdrawal));
         bytes memory instruction = abi.encodeWithSignature("submitSlowModeTransaction(bytes)", data);
 
         return (vertexEndpoint, instruction);
@@ -223,6 +223,6 @@ contract VertexHandler is Initializable, IDexHandler {
                 IClearinghouse(IEndpoint(vertexEndpoint).clearinghouse()).getEngineByProduct(productId)
             ).getBalance(productId, subaccount);
         uint256 decimals = 10 ** (18 - IERC20MetadataUpgradeable(token).decimals());
-        return decimals == 1 ? uint256(balance.amount) : uint256(balance.amount).ceilDiv(decimals);
+        return decimals == 1 ? uint256(balance.amount) : uint256(balance.amount) / decimals;
     }
 }

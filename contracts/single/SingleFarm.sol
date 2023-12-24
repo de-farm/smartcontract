@@ -255,7 +255,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
 
         status = SfStatus.CLOSED;
 
-        emit PositionClosed();
+        emit PositionClosed(balance);
     }
 
     /// @notice the manager can cancel the farm if they want, after fundraising
