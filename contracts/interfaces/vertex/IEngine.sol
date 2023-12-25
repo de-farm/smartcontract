@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 interface IEngine {
     struct Balance {
-        uint128 amount;
+        int128 amount;
         int128 lastCumulativeMultiplierX18;
     }
 

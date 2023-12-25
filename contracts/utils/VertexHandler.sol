@@ -223,6 +223,6 @@ contract VertexHandler is Initializable, IDexHandler {
                 IClearinghouse(IEndpoint(vertexEndpoint).clearinghouse()).getEngineByProduct(productId)
             ).getBalance(productId, subaccount);
         uint256 decimals = 10 ** (18 - IERC20MetadataUpgradeable(token).decimals());
-        return decimals == 1 ? uint256(balance.amount) : uint256(balance.amount) / decimals;
+        return decimals == 1 ? uint256(uint128(balance.amount)) : uint256(uint128(balance.amount)) / decimals;
     }
 }
