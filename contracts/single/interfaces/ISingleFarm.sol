@@ -19,14 +19,14 @@ interface ISingleFarm {
     }
 
     event Deposited(address indexed investor, uint256 amount);
-    event FundraisingClosed();
+    event FundraisingClosed(uint256 amount);
     event PositionOpened(bytes info);
     event PositionClosed(uint256 balance);
     event Cancelled();
     event Liquidated();
-    event Claimed(address investor, uint256 amount);
+    event Claimed(address indexed investor, uint256 amount);
     event FundDeadlineChanged(uint256 fundDeadline);
-    event LinkedSigner(address sender, address signer);
+    event LinkedSigner(address farm, address signer);
 
     event StatusUpdated(address indexed by, ISingleFarm.SfStatus status);
     event TotalRaisedUpdated(address indexed by, uint256 totalRaised);

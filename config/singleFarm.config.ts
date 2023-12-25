@@ -26,7 +26,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                         decimals: 18,
                     },
                 ],
-                dexHandler: '0x663c959f6aD7670d13b0115A60Ec0CE595bc86c1',
+                dexHandler: '0x6E5Ead7745407a7E16AD27C43c3D5D5f308cE96e',
             }
             break
         default:

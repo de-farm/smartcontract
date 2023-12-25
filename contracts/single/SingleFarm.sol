@@ -13,8 +13,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISingleFarm} from "./interfaces/ISingleFarm.sol";
 import {ISingleFarmFactory} from "./interfaces/ISingleFarmFactory.sol";
 import {IDepositConfig} from "./interfaces/IDepositConfig.sol";
-import "../interfaces/IHasOwnable.sol";
 import {IHasAdministrable} from "../interfaces/IHasAdministrable.sol";
+import "../interfaces/IHasOwnable.sol";
 import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasProtocolInfo.sol";
 import "../interfaces/ISupportedDex.sol";
@@ -47,7 +47,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     bool fundraisingClosed;
     bool isLinkSigner;
     uint256 public maxFeePay;
-    uint256 public holdWithdrawFee;
+    uint256 public holdDexFee;
 
     function initialize(
         ISingleFarmFactory.Sf calldata _sf,
@@ -68,6 +68,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         maxFeePay = 10000000; // 10e6
         status = SfStatus.NOT_OPENED;
         fundraisingClosed = false;
+        holdDexFee = 0;
     }
 
     modifier onlyOwner() {
@@ -133,12 +134,25 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         if (fundraisingClosed) revert HasClosedFundraising();
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
         if (totalRaised < 1) revert ZeroAmount();
-        // if (block.timestamp < endTime) revert CantClose();
+
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        (address feeToken, uint256 feeAmount) = dexHandler.getPaymentFee();
+        if (feeToken != USDC) revert InvalidToken(feeToken);
+        if (feeAmount > maxFeePay) revert FeeTooHigh(feeAmount);
+
+        // holdDexFee holds fee for setLinkSigner and withdraw
+        holdDexFee = feeAmount * 3;
+
+        if (totalRaised <= holdDexFee) revert NotEnoughFund();
+
+        totalRaised -= holdDexFee;
 
         endTime = block.timestamp;
         fundraisingClosed = true;
 
-        emit FundraisingClosed();
+        emit FundraisingClosed(totalRaised);
     }
 
     function openPosition(bytes memory info) external override openOnce whenNotPaused whenLinkedSigner {
@@ -166,17 +180,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
-        (address feeToken, uint256 feeAmount) = dexHandler.getPaymentFee();
-        if (feeToken != USDC) revert InvalidToken(feeToken);
-        if (feeAmount > maxFeePay) revert FeeTooHigh(feeAmount);
-
-        uint256 feePadding = 2 * feeAmount;
-
-        if (totalRaised <= feePadding) revert NotEnoughFund();
-        // Holds fee amount needs for withdraw when closePosition
-        totalRaised -= feePadding;
-        holdWithdrawFee = feePadding;
-
         (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
         usdc.approve(dex, totalRaised);
 
@@ -197,17 +200,10 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
-        (address feeToken, uint256 feeAmount) = dexHandler.getPaymentFee();
-        if (feeToken != USDC) revert InvalidToken(feeToken);
-        if (feeAmount > maxFeePay) revert FeeTooHigh(feeAmount);
-
         (address dex,  bytes memory instruction) = dexHandler.linkSignerInstruction(address(this), operator);
 
-        if (totalRaised <= feeAmount) revert NotEnoughFund();
-
         IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-        usdc.approve(dex, feeAmount);
-        totalRaised -= feeAmount;
+        usdc.approve(dex, holdDexFee);
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
@@ -236,7 +232,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
 
         IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-        usdc.approve(dex, holdWithdrawFee);
+        usdc.approve(dex, holdDexFee);
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
@@ -245,7 +241,9 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
             uint256 profits = balance - totalRaised;
 
             uint256 _managerFee = (profits * managerFeeNumerator) / FEE_DENOMINATOR;
-            if(_managerFee > 0) usdc.transfer(manager, _managerFee);
+            if(_managerFee > 0) {
+                claimAmount[manager] += _managerFee;
+            }
 
             remainingAmountAfterClose = balance - _managerFee;
         }
@@ -438,14 +436,14 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         return claimed[_investor];
     }
 
-    function withdraw(address receiver, bool isEth, address token, uint256 amount) external onlyOwner returns (bool) {
-        if(isEth) {
-            payable(receiver).transfer(amount);
-        }
-        else {
-            IERC20Upgradeable(token).transfer(receiver, amount);
-        }
+    // function withdraw(address receiver, bool isEth, address token, uint256 amount) external onlyOwner returns (bool) {
+    //     if(isEth) {
+    //         payable(receiver).transfer(amount);
+    //     }
+    //     else {
+    //         IERC20Upgradeable(token).transfer(receiver, amount);
+    //     }
 
-        return true;
-    }
+    //     return true;
+    // }
 }
