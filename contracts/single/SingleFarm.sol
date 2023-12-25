@@ -428,7 +428,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         } else {
             amount = 0;
         }
-        if (msg.sender == manager && managerFeeReceived > 0) {
+        if (_investor == manager && managerFeeReceived > 0) {
             amount += managerFeeReceived;
         }
     }
