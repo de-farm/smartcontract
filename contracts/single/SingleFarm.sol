@@ -40,6 +40,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     uint256 public actualTotalRaised;
     SfStatus public status;
     uint256 public override remainingAmountAfterClose;
+    uint256 public managerFeeReceived;
     mapping(address => uint256) public userAmount;
     mapping(address => uint256) public claimAmount;
     mapping(address => bool) public claimed;
@@ -69,6 +70,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         status = SfStatus.NOT_OPENED;
         fundraisingClosed = false;
         holdDexFee = 0;
+        managerFeeReceived = 0;
     }
 
     modifier onlyOwner() {
@@ -143,7 +145,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         if (feeAmount > maxFeePay) revert FeeTooHigh(feeAmount);
 
         // holdDexFee holds fee for setLinkSigner and withdraw
-        holdDexFee = feeAmount * 3;
+        holdDexFee = feeAmount * 2;
 
         if (totalRaised <= holdDexFee) revert NotEnoughFund();
 
@@ -242,7 +244,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
 
             uint256 _managerFee = (profits * managerFeeNumerator) / FEE_DENOMINATOR;
             if(_managerFee > 0) {
-                claimAmount[manager] += _managerFee;
+                managerFeeReceived += _managerFee;
             }
 
             remainingAmountAfterClose = balance - _managerFee;
@@ -425,6 +427,9 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
             amount = (remainingAmountAfterClose * userAmount[_investor] * 1e18) / (actualTotalRaised * 1e18);
         } else {
             amount = 0;
+        }
+        if (msg.sender == manager && managerFeeReceived > 0) {
+            amount += managerFeeReceived;
         }
     }
 
