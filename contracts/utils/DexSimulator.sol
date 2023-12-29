@@ -10,6 +10,9 @@ contract DexSimulator is OwnableUpgradeable, IDexHandler {
     mapping(address => int256) public balances;
     mapping(address => address) public signers;
 
+    address public feeToken;
+    uint256 public feeAmount;
+
     function initialize() external initializer {
         __Ownable_init();
     }
@@ -25,6 +28,11 @@ contract DexSimulator is OwnableUpgradeable, IDexHandler {
 
     function getBalance(address wallet) external view returns (int256) {
         return balances[wallet];
+    }
+
+    function getBalance(address wallet, address token) external view returns (uint256) {
+        if (token == address(0)) revert InvalidToken(token);
+        return uint256(balances[wallet]);
     }
 
     function deposit(
@@ -75,5 +83,14 @@ contract DexSimulator is OwnableUpgradeable, IDexHandler {
             farm, operator
         );
         return (address(this), instruction);
+    }
+
+    function setPaymentFee(address _feeToken, uint256 _feeAmount) external {
+        feeToken = _feeToken;
+        feeAmount = _feeAmount;
+    }
+
+    function getPaymentFee() external view returns(address, uint256) {
+        return (feeToken, feeAmount);
     }
 }

@@ -7,7 +7,7 @@ async function main() {
 
   const VertexHandler = await ethers.getContractFactory("VertexHandler");
   const vertexHandler = await upgrades.deployProxy(
-    VertexHandler, [config.quote, config.endpoint, config.querier]
+    VertexHandler, [config.endpoint, config.querier, config.slowModeFee]
   );
 
   console.log(

@@ -4,6 +4,8 @@ import { getSingleFarmConfig } from "../../config/singleFarm.config";
 async function main() {
   const singleFarmConfig = getSingleFarmConfig(network.name);
 
+  console.log('SingleFarm config: ', singleFarmConfig);
+
   const SingleFarm = await ethers.getContractFactory("SingleFarm");
   const singleFarm = await SingleFarm.deploy()
   if(network.name !== "localhost") {
@@ -22,7 +24,6 @@ async function main() {
       singleFarmConfig.maxInvestmentAmount,
       singleFarmConfig.maxLeverage,
       singleFarmConfig.usdToken,
-      singleFarmConfig.defarmSeeds
     ]
   )
 
@@ -38,10 +39,6 @@ async function main() {
 
   if(singleFarmConfig.admin) {
     await factory.setAdmin(singleFarmConfig.admin);
-  }
-
-  if(singleFarmConfig.maker) {
-    await factory.setMaker(singleFarmConfig.maker);
   }
 
   if(singleFarmConfig.baseTokens.length > 0)

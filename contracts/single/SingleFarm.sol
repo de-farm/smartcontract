@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 
 import "../utils/Constants.sol";
 import "../utils/Errors.sol";
@@ -11,38 +13,42 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISingleFarm} from "./interfaces/ISingleFarm.sol";
 import {ISingleFarmFactory} from "./interfaces/ISingleFarmFactory.sol";
 import {IDepositConfig} from "./interfaces/IDepositConfig.sol";
-import "../interfaces/IHasOwnable.sol";
 import {IHasAdministrable} from "../interfaces/IHasAdministrable.sol";
+import "../interfaces/IHasOwnable.sol";
 import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasProtocolInfo.sol";
-import "../interfaces/IHasSeedable.sol";
-import "../seeds/IDeFarmSeeds.sol";
 import "../interfaces/ISupportedDex.sol";
 import "../interfaces/IDexHandler.sol";
 
 /// @title SingleFarm
 /// @notice Contract for the investors to deposit and for managers to open and close positions
-contract SingleFarm is ISingleFarm, Initializable {
+contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
+    using ECDSAUpgradeable for bytes32;
+    
     bool private calledOpen;
-    bool public isSeedsFarm;
 
     ISingleFarmFactory.Sf public sf;
 
     address public USDC;
 
     address public factory;
-    address public manager;
-    address public operator;
+    address public manager; // Farm manager
+    address public operator; // Dex external account with link signer
     uint256 public endTime;
     uint256 public fundDeadline;
     uint256 public totalRaised;
     uint256 public actualTotalRaised;
     SfStatus public status;
     uint256 public override remainingAmountAfterClose;
+    uint256 public managerFeeReceived;
     mapping(address => uint256) public userAmount;
     mapping(address => uint256) public claimAmount;
     mapping(address => bool) public claimed;
     uint256 private managerFeeNumerator;
+    bool fundraisingClosed;
+    bool isLinkSigner;
+    uint256 public maxFeePay;
+    uint256 public holdDexFee;
 
     function initialize(
         ISingleFarmFactory.Sf calldata _sf,
@@ -59,7 +65,12 @@ contract SingleFarm is ISingleFarm, Initializable {
         endTime = block.timestamp + _sf.fundraisingPeriod;
         fundDeadline = 72 hours;
         USDC = _usdc;
-        isSeedsFarm = true;
+        isLinkSigner = false;
+        maxFeePay = 10000000; // 10e6
+        status = SfStatus.NOT_OPENED;
+        fundraisingClosed = false;
+        holdDexFee = 0;
+        managerFeeReceived = 0;
     }
 
     modifier onlyOwner() {
@@ -88,6 +99,11 @@ contract SingleFarm is ISingleFarm, Initializable {
         _;
     }
 
+    modifier whenLinkedSigner() {
+        require(isLinkSigner, "farm is not linked with a signer");
+        _;
+    }
+
     /// @notice deposit a particular amount into a farm for the manager to open a position
     /// @dev `fundraisingPeriod` has to end and the `totalRaised` should not be more than `capacityPerFarm`
     /// @dev amount has to be between `minInvestmentAmount` and `maxInvestmentAmount`
@@ -95,16 +111,13 @@ contract SingleFarm is ISingleFarm, Initializable {
     /// @param amount amount the investor wants to deposit
     function deposit(uint256 amount) external override whenNotPaused {
         if (block.timestamp > endTime) revert AboveMax(endTime, block.timestamp);
-
-        IHasSeedable seedable = IHasSeedable(factory);
-        if(isSeedsFarm == true && IDeFarmSeeds(seedable.deFarmSeeds()).balanceOf(msg.sender, manager) == 0) revert ZeroSeedBalance();
+        if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
 
         IDepositConfig depositConfig = IDepositConfig(factory);
         if (amount <  depositConfig.minInvestmentAmount()) revert BelowMin(depositConfig.minInvestmentAmount(), amount);
         if (userAmount[msg.sender] + amount > depositConfig.maxInvestmentAmount()) {
             revert AboveMax(depositConfig.maxInvestmentAmount(), userAmount[msg.sender] + amount);
         }
-        if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
         if (totalRaised + amount > depositConfig.capacityPerFarm()) revert AboveMax(depositConfig.capacityPerFarm(), totalRaised + amount);
 
         IERC20Upgradeable(USDC).transferFrom(msg.sender, address(this), amount);
@@ -116,62 +129,38 @@ contract SingleFarm is ISingleFarm, Initializable {
         emit Deposited(msg.sender, amount);
     }
 
-    /// @notice allows the manager to end the `fundraisingPeriod` early and open a market position
-    /// @dev transfers the `totalRaised` usdc of the farm to the operator
-    function closeFundraisingAndOpenPosition(bytes memory info) external openOnce whenNotPaused {
-        if(msg.sender != manager) revert NoAccess(manager, msg.sender);
-
-        if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
-        // if (block.timestamp < endTime) revert CantClose();
-        if (totalRaised < 1) revert ZeroAmount();
-
-        // update state variables
-        status = SfStatus.OPENED;
-        endTime = block.timestamp;
-
-        IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-
-        IHasProtocolInfo protocolInfo = IHasProtocolInfo(factory);
-        (uint256 _protocolFeeNumerator, uint256 _protocolFeeDenominator) = protocolInfo.getProtocolFee();
-        uint256 _protocolFee = (totalRaised * _protocolFeeNumerator) / _protocolFeeDenominator;
-
-        if(_protocolFee > 0) {
-            totalRaised -= _protocolFee;
-            usdc.transfer(protocolInfo.treasury(), _protocolFee);
-        }
-
-        if(operator == address(0)) revert ZeroAddress();
-        // usdc.transfer(operator, totalRaised);
-        ISupportedDex supportedDex = ISupportedDex(factory);
-        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
-
-        (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
-        // Collect dex fee
-        totalRaised -= 2e6;
-        usdc.approve(dex, totalRaised);
-        (bool success, ) = dex.call(instruction);
-        if(!success) revert ExecutionCallFailure();
-
-        emit FundraisingClosedAndPositionOpened(info);
-    }
-
     /// @notice allows the manager to close the fundraising and open a position later
     /// @dev changes the `endTime` to the current `block.timestamp`
     function closeFundraising() external override whenNotPaused {
         if (manager != msg.sender) revert NoAccess(manager, msg.sender);
+        if (fundraisingClosed) revert HasClosedFundraising();
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
         if (totalRaised < 1) revert ZeroAmount();
-        // if (block.timestamp < endTime) revert CantClose();
+
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        (address feeToken, uint256 feeAmount) = dexHandler.getPaymentFee();
+        if (feeToken != USDC) revert InvalidToken(feeToken);
+        if (feeAmount > maxFeePay) revert FeeTooHigh(feeAmount);
+
+        // holdDexFee holds fee for setLinkSigner and withdraw
+        holdDexFee = feeAmount * 2;
+
+        if (totalRaised <= holdDexFee) revert NotEnoughFund();
+
+        totalRaised -= holdDexFee;
 
         endTime = block.timestamp;
+        fundraisingClosed = true;
 
-        emit FundraisingClosed();
+        emit FundraisingClosed(totalRaised);
     }
 
-    function openPosition(bytes memory info) external override openOnce whenNotPaused {
+    function openPosition(bytes memory info) external override openOnce whenNotPaused whenLinkedSigner {
         if(msg.sender != manager) revert NoAccess(manager, msg.sender);
 
-        if (endTime > block.timestamp) revert StillFundraising(endTime, block.timestamp);
+        if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
         if (totalRaised < 1) revert ZeroAmount();
 
@@ -194,9 +183,7 @@ contract SingleFarm is ISingleFarm, Initializable {
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
         (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
-        // Collect dex fee
-        totalRaised -= 2000000;
-        usdc.approve(dex, totalRaised + 1e6);
+        usdc.approve(dex, totalRaised);
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
@@ -205,7 +192,12 @@ contract SingleFarm is ISingleFarm, Initializable {
     }
 
     function setLinkSigner() public whenNotPaused {
-        if(msg.sender != operator) revert NoAccess(operator, msg.sender);
+        if (isLinkSigner) revert HasLinkSigner();
+        require(msg.sender == operator || msg.sender == IHasOwnable(factory).owner() 
+        || msg.sender == IHasAdministrable(factory).admin(), "no access");
+
+        // Ensure farm is end fundraising
+        if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
 
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
@@ -213,26 +205,36 @@ contract SingleFarm is ISingleFarm, Initializable {
         (address dex,  bytes memory instruction) = dexHandler.linkSignerInstruction(address(this), operator);
 
         IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-        usdc.approve(dex, 1000000);
+        usdc.approve(dex, holdDexFee);
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
+        isLinkSigner = true;
+
+        emit LinkedSigner(address(this), operator);
     }
 
     /// @notice allows the manager/operator to mark farm as closed
     /// @dev can be called only if theres a position already open
     /// @dev `status` will be `PositionClosed`
-    function closePosition(uint256 balance) external override whenNotPaused {
+    function closePosition(bytes memory _signature) external override whenNotPaused whenLinkedSigner {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.OPENED) revert NoOpenPositions();
+
+        // Verifying the correctness of the signature. Ensure position has closed on dex.
+        if(getClosePositionDigest(address(this))
+            .toEthSignedMessageHash().recover(_signature) != operator) revert InvalidSignature(operator);
 
         ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
+        uint256 balance = dexHandler.getBalance(address(this), USDC);
+        if (balance < 1) revert ZeroTokenBalance();
+
         (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
 
         IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-        usdc.approve(dex, 1000000);
+        usdc.approve(dex, holdDexFee);
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
@@ -241,7 +243,9 @@ contract SingleFarm is ISingleFarm, Initializable {
             uint256 profits = balance - totalRaised;
 
             uint256 _managerFee = (profits * managerFeeNumerator) / FEE_DENOMINATOR;
-            if(_managerFee > 0) usdc.transfer(manager, _managerFee);
+            if(_managerFee > 0) {
+                managerFeeReceived += _managerFee;
+            }
 
             remainingAmountAfterClose = balance - _managerFee;
         }
@@ -251,7 +255,7 @@ contract SingleFarm is ISingleFarm, Initializable {
 
         status = SfStatus.CLOSED;
 
-        emit PositionClosed();
+        emit PositionClosed(balance);
     }
 
     /// @notice the manager can cancel the farm if they want, after fundraising
@@ -266,11 +270,6 @@ contract SingleFarm is ISingleFarm, Initializable {
         status = SfStatus.CANCELLED;
 
         emit Cancelled();
-    }
-
-    function setSeedsFarm(bool enable) external onlyOwner {
-        isSeedsFarm = enable;
-        emit SeedsFarmChanged(enable);
     }
 
     /// @notice set the `fundDeadline` for a particular farm to cancel the farm early if needed
@@ -331,7 +330,11 @@ contract SingleFarm is ISingleFarm, Initializable {
     /// @param _newOperator new `operator` of the farm
     function setOperator(address _newOperator) external onlyOwner {
         if(_newOperator == address(0)) revert ZeroAddress();
+        if (_newOperator == operator) {
+            return;
+        }
         operator = _newOperator;
+        isLinkSigner = false;
         emit OperatorUpdated(msg.sender, operator);
     }
 
@@ -368,6 +371,20 @@ contract SingleFarm is ISingleFarm, Initializable {
     /*//////////////////////////////////////////////////////////////
                               VIEW
     //////////////////////////////////////////////////////////////*/
+
+    function getClosePositionDigest(
+        address _farm
+    ) public view returns (bytes32) {
+        return
+            _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        CLOSE_POSITION_HASH,
+                        _farm
+                    )
+                )
+            );
+    }
 
     function getInfo()
         external
@@ -411,6 +428,9 @@ contract SingleFarm is ISingleFarm, Initializable {
         } else {
             amount = 0;
         }
+        if (_investor == manager && managerFeeReceived > 0) {
+            amount += managerFeeReceived;
+        }
     }
 
     function getClaimAmount(address _investor) external view override returns (uint256) {
@@ -421,14 +441,14 @@ contract SingleFarm is ISingleFarm, Initializable {
         return claimed[_investor];
     }
 
-    function withdraw(address receiver, bool isEth, address token, uint256 amount) external onlyOwner returns (bool) {
-        if(isEth) {
-            payable(receiver).transfer(amount);
-        }
-        else {
-            IERC20Upgradeable(token).transfer(receiver, amount);
-        }
+    // function withdraw(address receiver, bool isEth, address token, uint256 amount) external onlyOwner returns (bool) {
+    //     if(isEth) {
+    //         payable(receiver).transfer(amount);
+    //     }
+    //     else {
+    //         IERC20Upgradeable(token).transfer(receiver, amount);
+    //     }
 
-        return true;
-    }
+    //     return true;
+    // }
 }

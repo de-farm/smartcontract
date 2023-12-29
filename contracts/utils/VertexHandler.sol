@@ -3,27 +3,18 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
 import "./Errors.sol";
 import "../interfaces/vertex/IEndpoint.sol";
 import "../interfaces/vertex/IFQuerier.sol";
+import "../interfaces/vertex/IEngine.sol";
 import "../interfaces/IDexHandler.sol";
-
-struct LinkSigner {
-    bytes32 sender;
-    bytes32 signer;
-    uint64 nonce;
-}
-
-struct WithdrawCollateral {
-    bytes32 sender;
-    uint32 productId;
-    uint128 amount;
-    uint64 nonce;
-}
 
 contract VertexHandler is Initializable, IDexHandler {
     using SafeMathUpgradeable for int256;
+    using MathUpgradeable for uint256;
 
     // name is 'default'
     bytes12 constant DEFAULT_SUBACCOUNT = hex"64656661756c740000000000";
@@ -31,9 +22,18 @@ contract VertexHandler is Initializable, IDexHandler {
     address public vertexEndpoint;
     address public vertexQuerier;
 
-    function initialize(address _vertexEndpoint, address _vertexQuerier) external initializer {
+    /// @notice The Vertex slow mode fee.
+    uint256 public slowModeFee;
+    address public paymentToken;
+
+
+    function initialize(address _vertexEndpoint, address _vertexQuerier, uint256 _slowModeFee) external initializer {
         vertexEndpoint = _vertexEndpoint;
         vertexQuerier = _vertexQuerier;
+        slowModeFee = _slowModeFee;
+
+        // Set the payment token for slow-mode transactions through Vertex.
+        paymentToken = address((IClearinghouse(IEndpoint(_vertexEndpoint).clearinghouse()).getQuote()));
     }
 
     // https://github.com/vertex-protocol/vertex-typescript-sdk/blob/main/packages/contracts/src/utils/bytes32.ts#L14
@@ -74,14 +74,14 @@ contract VertexHandler is Initializable, IDexHandler {
     }
 
     function linkSignerInstruction(address farm, address operator) external view returns(address, bytes memory) {
-        LinkSigner memory linkSigner = LinkSigner({
+        IEndpoint.LinkSigner memory linkSigner = IEndpoint.LinkSigner({
             sender: addressToSubaccount(farm),
             signer: bytes32(uint256(uint160(operator)) << 96),
             nonce: 0
         });
 
         // https://github.com/vertex-protocol/vertex-contracts/blob/main/contracts/interfaces/IEndpoint.sol#L31
-        bytes memory data = abi.encodePacked(uint8(19), abi.encode(linkSigner));
+        bytes memory data = abi.encodePacked(uint8(IEndpoint.TransactionType.LinkSigner), abi.encode(linkSigner));
         bytes memory instruction = abi.encodeWithSignature("submitSlowModeTransaction(bytes)", data);
         return (vertexEndpoint, instruction);
     }
@@ -89,14 +89,14 @@ contract VertexHandler is Initializable, IDexHandler {
     function withdrawInstruction(address farm, address asset, uint256 amount) external view returns(address, bytes memory) {
         if(amount > type(uint128).max) revert AboveMax(type(uint128).max, amount);
 
-        WithdrawCollateral memory withdrawal = WithdrawCollateral({
+        IEndpoint.WithdrawCollateral memory withdrawal = IEndpoint.WithdrawCollateral({
             sender: addressToSubaccount(farm),
             productId: findSpotProductId(asset),
             amount: uint128(amount),
             nonce: 0
         });
         // https://github.com/vertex-protocol/vertex-contracts/blob/main/contracts/interfaces/IEndpoint.sol#L14
-        bytes memory data = abi.encodePacked(uint8(2), abi.encode(withdrawal));
+        bytes memory data = abi.encodePacked(uint8(IEndpoint.TransactionType.WithdrawCollateral), abi.encode(withdrawal));
         bytes memory instruction = abi.encodeWithSignature("submitSlowModeTransaction(bytes)", data);
 
         return (vertexEndpoint, instruction);
@@ -210,5 +210,19 @@ contract VertexHandler is Initializable, IDexHandler {
             .multipliedBy(balanceWithProduct.oraclePrice)
             .plus(balanceWithProduct.vQuoteBalance); */
         balance = int256(perpBalance.balance.amount)*int256(perpProduct.oraclePriceX18)/1e18 + perpBalance.balance.vQuoteBalance;
+    }
+
+    function getPaymentFee() external view returns (address, uint256) {
+        return (paymentToken, slowModeFee);
+    }
+
+    function getBalance(address wallet, address token) external view returns (uint256) {
+        bytes32 subaccount = addressToSubaccount(wallet);
+        uint32 productId = findSpotProductId(token);
+        IEngine.Balance memory balance = IEngine(
+                IClearinghouse(IEndpoint(vertexEndpoint).clearinghouse()).getEngineByProduct(productId)
+            ).getBalance(productId, subaccount);
+        uint256 decimals = 10 ** (18 - IERC20MetadataUpgradeable(token).decimals());
+        return decimals == 1 ? uint256(uint128(balance.amount)) : uint256(uint128(balance.amount)) / decimals;
     }
 }
