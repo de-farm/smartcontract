@@ -4,8 +4,8 @@ deFarm is a new type of Social Finance platform that truly mixes the best of bot
 Speaking in simple terms/Layman Language, deFarm allows Fund Managers to create smart-contract based DeFi Vaults, which act like secured funds. Liquidity Providers can entrust their funds into the hands of other Funds Managers to earn passive income without the need to worry about the safety of their money.
 
 ## Repository
-* `contracts/interfaces`: all interfaces using in defarm contract
-* `contracts/single`: contract handle logic of single farm, allow a farm manager create a farm with given config and manage position of farm with a dex
+* `contracts/interfaces`: all interfaces using in defarm contract.
+* `contracts/single`: contract handle logic of single farm, allow a farm manager create a farm with given config and manage position of farm with a dex.
 * `contracts/utils`: all utilities contracts and libraries. In particular, It's contain a contract mapping to a Vertex contract (`VertexHandler`) and handle view data and submit transaction from a farm to Vertex.
 
 We have 3 main contracts:
@@ -28,7 +28,7 @@ Link: https://vertex-protocol.gitbook.io/docs/developer-resources/api/integrate-
 ### 4. Set Link Signer
 * `setLinkSigner` allows the single farm address link signer to a operator. It submit a `LinkSinger` tx to Vertex using `submitSlowModeTransaction`.
 ### 6. Open Position
-* `openPosition` allows the single farm deposit the raised fund to Vertex subaccount through `depositCollateral`
+* `openPosition` allows the single farm deposit the raised fund to Vertex subaccount through `depositCollateral` of Vertex contract.
 ### 7. Close Position
 * `closePosition` allows the single farm withdraw collateral of Vertex subaccount to single farm contract. It required a signature from operator for ensure the posotion has closed in Vertex.
 ### 8. Cancel
