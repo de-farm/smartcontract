@@ -300,32 +300,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
 
         emit Claimed(msg.sender, amount);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                            OWNER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Set the `status` of a farm in case of an emergency
-    /// @param _status new `status` of the farm
-    function setStatus(SfStatus _status) external onlyOwner {
-        status = _status;
-        emit StatusUpdated(msg.sender, _status);
-    }
-
-    /// @notice Set the `totalRaised` of a farm in case of an emergency
-    /// @param _totalRaised new `totalRaised` of the farm
-    function setTotalRaised(uint256 _totalRaised) external onlyOwner {
-        totalRaised = _totalRaised;
-        emit TotalRaisedUpdated(msg.sender, _totalRaised);
-    }
-
-    /// @notice Set the `remainingAmountAfterClose` of a farm in case of an emergency
-    /// @param _remainingBalance new `remainingAmountAfterClose` of the farm
-    function setRemainingBalance(uint256 _remainingBalance) external onlyOwner {
-        remainingAmountAfterClose = _remainingBalance;
-        emit RemainingBalanceUpdated(msg.sender, _remainingBalance);
-    }
-
+    
     /// @notice Set the `operator` of an farm in case of an emergency
     /// @param _newOperator new `operator` of the farm
     function setOperator(address _newOperator) external onlyOwner {
@@ -440,15 +415,4 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     function getClaimed(address _investor) external view override returns (bool) {
         return claimed[_investor];
     }
-
-    // function withdraw(address receiver, bool isEth, address token, uint256 amount) external onlyOwner returns (bool) {
-    //     if(isEth) {
-    //         payable(receiver).transfer(amount);
-    //     }
-    //     else {
-    //         IERC20Upgradeable(token).transfer(receiver, amount);
-    //     }
-
-    //     return true;
-    // }
 }
