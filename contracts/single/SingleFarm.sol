@@ -397,9 +397,9 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         if (claimed[_investor] || status == SfStatus.OPENED) {
             amount = 0;
         } else if (status == SfStatus.CANCELLED || status == SfStatus.NOT_OPENED) {
-            amount = (totalRaised * userAmount[_investor] * 1e18) / (actualTotalRaised * 1e18);
+            amount = (totalRaised * userAmount[_investor]) / actualTotalRaised;
         } else if (status == SfStatus.CLOSED) {
-            amount = (remainingAmountAfterClose * userAmount[_investor] * 1e18) / (actualTotalRaised * 1e18);
+            amount = (remainingAmountAfterClose * userAmount[_investor]) / actualTotalRaised;
         } else {
             amount = 0;
         }
