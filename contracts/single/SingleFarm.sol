@@ -157,7 +157,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         emit FundraisingClosed(totalRaised);
     }
 
-    function openPosition(bytes memory info) external override openOnce whenNotPaused whenLinkedSigner {
+    function openPosition(bytes calldata info) external override openOnce whenNotPaused whenLinkedSigner {
         if(msg.sender != manager) revert NoAccess(manager, msg.sender);
 
         if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
@@ -217,7 +217,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     /// @notice allows the manager/operator to mark farm as closed
     /// @dev can be called only if theres a position already open
     /// @dev `status` will be `PositionClosed`
-    function closePosition(bytes memory _signature) external override whenNotPaused whenLinkedSigner {
+    function closePosition(bytes calldata _signature) external override whenNotPaused whenLinkedSigner {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.OPENED) revert NoOpenPositions();
 
