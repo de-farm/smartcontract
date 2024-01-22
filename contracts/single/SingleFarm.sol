@@ -322,6 +322,12 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     /// @dev can only be called by the `admin`
     function liquidate() external override onlyAdmin whenNotPaused {
         if (status != SfStatus.OPENED) revert NotOpened();
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        uint256 balance = dexHandler.getBalance(address(this), USDC);
+        if (balance >= 1) revert NotAbleLiquidate(balance);
+        
         status = SfStatus.LIQUIDATED;
         emit Liquidated();
     }
