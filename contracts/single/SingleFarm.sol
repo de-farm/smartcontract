@@ -273,7 +273,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     }
 
     /// @notice set the `fundDeadline` for a particular farm to cancel the farm early if needed
-    /// @dev can only be called by the `owner` or the `manager` of the farm
+    /// @dev can only be called by the `admin` or the `manager` of the farm
     /// @param newFundDeadline new fundDeadline
     function setFundDeadline(uint256 newFundDeadline) external override {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
