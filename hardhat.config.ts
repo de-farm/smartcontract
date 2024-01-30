@@ -24,11 +24,20 @@ const config: HardhatUserConfig = {
         ?[
           process.env.OWNER_PRIVATE_KEY,
         ]:[],
+    },
+    arbitrumOne : {
+      url: `https://arb1.arbitrum.io/rpc`,
+      chainId: 42161,
+      accounts: process.env.OWNER_PRIVATE_KEY
+        ?[
+          process.env.OWNER_PRIVATE_KEY,
+        ]:[],
     }
   },
   etherscan: {
     apiKey: {
       arbitrumSepolia : process.env.ARBISCAN_API_KEY || "Q64QDZTGG8Q5R97T6E2K2ZD2638NDSPFKM",
+      arbitrumOne: process.env.ARBISCAN_API_KEY || "B2VTSN8QBY1DDINSZHNRSH9CJZDGC37VQ2",
     },
     customChains: [
       {
@@ -77,7 +86,6 @@ const config: HardhatUserConfig = {
       "AssetSimulator",
       "VertexHandler",
       "DexSimulator",
-      "DeFarmSeeds"
     ],
     spacing: 2,
   },

@@ -14,15 +14,16 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                 endpoint : '0xaDeFDE1A14B6ba4DA3e82414209408a49930E8DC',
                 slowModeFee: '1000000', // 1e6
             }
-        case "mainnet": return {
-            quote: '', // USDC
-            querier: '0x1693273B443699bee277eCbc60e2C8027E91995d',
-            endpoint : '0xbbEE07B3e8121227AfCFe1E2B82772246226128e',
-            slowModeFee: '1000000', // 1e6
-        }
+        case "mainnet": 
+            return {
+                quote: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', // USDC
+                querier: '0x1693273B443699bee277eCbc60e2C8027E91995d',
+                endpoint : '0xbbEE07B3e8121227AfCFe1E2B82772246226128e',
+                slowModeFee: '1000000', // 1e6
+            }
         default:
             return {
-                quote: '',
+                quote: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
                 querier: '0x1693273B443699bee277eCbc60e2C8027E91995d',
                 endpoint : '0xbbEE07B3e8121227AfCFe1E2B82772246226128e',
                 slowModeFee: '1000000', // 1e6
