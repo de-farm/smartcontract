@@ -44,7 +44,7 @@ contract VertexHandler is Initializable, IDexHandler {
 
     function findSpotProductId(address asset) public view returns(uint32) {
         IFQuerier querier = IFQuerier(vertexQuerier);
-        IFQuerier.ProductInfo memory productInfo = querier.getAllProducts();
+        IFQuerier.ProductInfo memory productInfo = querier.getAllProducts(0);
 
         for (uint32 i = 0; i < productInfo.spotProducts.length; i++) {
             IFQuerier.SpotProduct memory spotProduct = productInfo.spotProducts[i];
@@ -106,7 +106,7 @@ contract VertexHandler is Initializable, IDexHandler {
     function getBalance(address wallet) external view returns (int256 balance) {
         bytes32 subaccount = addressToSubaccount(wallet);
         IFQuerier querier = IFQuerier(vertexQuerier);
-        IFQuerier.ProductInfo memory productInfo = querier.getAllProducts();
+        IFQuerier.ProductInfo memory productInfo = querier.getAllProducts(0);
 
         balance = 0;
 
