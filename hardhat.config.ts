@@ -24,11 +24,20 @@ const config: HardhatUserConfig = {
         ?[
           process.env.OWNER_PRIVATE_KEY,
         ]:[],
+    },
+    blastSepolia : {
+      url: 'https://sepolia.blast.io',
+      chainId: 168587773,
+      accounts: process.env.OWNER_PRIVATE_KEY
+        ?[
+          process.env.OWNER_PRIVATE_KEY,
+        ]:[],
     }
   },
   etherscan: {
     apiKey: {
       arbitrumSepolia : process.env.ARBISCAN_API_KEY || "Q64QDZTGG8Q5R97T6E2K2ZD2638NDSPFKM",
+      blastSepolia : process.env.BLASTSCAN_API_KEY || "",
     },
     customChains: [
       {
@@ -37,6 +46,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api-sepolia.arbiscan.io/api",
           browserURL: "https://sepolia.arbiscan.io/"
+        }
+      },
+      {
+        network: "blastSepolia",
+        chainId: 168587773,
+        urls: {
+          apiURL: "https://api.routescan.io/v2/network/testnet/evm/168587773/etherscan",
+          browserURL: "https://testnet.blastscan.io/"
         }
       }
     ]

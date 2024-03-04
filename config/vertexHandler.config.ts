@@ -14,6 +14,13 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                 endpoint : '0xaDeFDE1A14B6ba4DA3e82414209408a49930E8DC',
                 slowModeFee: '1000000', // 1e6
             }
+        case "blastSepolia":
+            return {
+                quote: '', // USDC
+                querier: '',
+                endpoint : '',
+                slowModeFee: '1000000', // 1e6
+            }
         case "mainnet": return {
             quote: '', // USDC
             querier: '0x1693273B443699bee277eCbc60e2C8027E91995d',
