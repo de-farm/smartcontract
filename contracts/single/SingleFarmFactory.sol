@@ -16,6 +16,8 @@ import "./interfaces/ISingleFarmFactory.sol";
 import "./interfaces/IDepositConfig.sol";
 import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasAdministrable.sol";
+import "../interfaces/IHasSeedable.sol";
+import "../interfaces/IDeFarmSeeds.sol";
 import "../utils/WhitelistedTokens.sol";
 import "../utils/Administrable.sol";
 import "../utils/ETHFee.sol";
@@ -33,6 +35,7 @@ contract SingleFarmFactory is
     ISingleFarmFactory,
     IHasPausable,
     IDepositConfig,
+    IHasSeedable,
     OwnableUpgradeable,
     PausableUpgradeable,
     EIP712Upgradeable,
@@ -74,6 +77,7 @@ contract SingleFarmFactory is
     mapping(address => bool) public isFarm;
 
     uint public currentOperatorIndex;
+    address public deFarmSeeds;
 
     /*//////////////////////////////////////////////////////////////
                             INITIALIZE
@@ -94,7 +98,8 @@ contract SingleFarmFactory is
         uint256 _minInvestmentAmount,
         uint256 _maxInvestmentAmount,
         uint256 _maxLeverage,
-        address _usdc
+        address _usdc,
+        address _deFarmSeeds
     ) public initializer {
         __Ownable_init();
         __Pausable_init();
@@ -121,6 +126,7 @@ contract SingleFarmFactory is
         maxFundraisingPeriod = 1 weeks;
 
         currentOperatorIndex = 0;
+        deFarmSeeds = _deFarmSeeds;
 
         emit FarmFactoryInitialized(
             _singleFarmImplementation,
@@ -133,7 +139,8 @@ contract SingleFarmFactory is
             FEE_DENOMINATOR,
             _usdc,
             admin(),
-            treasury()
+            treasury(),
+            _deFarmSeeds
         );
     }
 
@@ -156,8 +163,14 @@ contract SingleFarmFactory is
     /// @return farm address of the proxy contract which is deployed
     function createFarm(
         Sf calldata _sf,
-        uint256 _managerFee
+        uint256 _managerFee,
+        bool _isPrivate
     ) external payable override whenNotPaused returns (address farm) {
+        if (_isPrivate) {
+            // When the manager has initialized seeds before creating a farm
+            if(IDeFarmSeeds(deFarmSeeds).balanceOf(msg.sender, msg.sender) == 0) revert ZeroSeedBalance(msg.sender);
+        }
+
         require(numberOperators() > 0, "No operators available");
         address selectedOperator = getOperator(currentOperatorIndex % numberOperators());
 
@@ -179,12 +192,13 @@ contract SingleFarmFactory is
         ERC1967Proxy singleFarm = new ERC1967Proxy(
             ClonesUpgradeable.clone(singleFarmImplementation),
             abi.encodeWithSignature(
-                "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,address)",
+                "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,address,bool)",
                 _sf,
                 msg.sender,
                 _managerFee,
                 USDC,
-                selectedOperator
+                selectedOperator,
+                _isPrivate
             )
         );
 
@@ -205,7 +219,8 @@ contract SingleFarmFactory is
             _managerFee,
             FEE_DENOMINATOR,
             selectedOperator,
-            block.timestamp
+            block.timestamp,
+            _isPrivate
         );
     }
 
@@ -299,6 +314,12 @@ contract SingleFarmFactory is
         if (_usdc == address(0)) revert ZeroAddress();
         USDC = _usdc;
         emit UsdcAddressChanged(_usdc);
+    }
+
+    function setDeFarmSeeds(address _deFarmSeeds) external onlyOwner {
+        if (_deFarmSeeds == address(0)) revert ZeroAddress();
+        deFarmSeeds = _deFarmSeeds;
+        emit DefarmSeedsAddressChanged(_deFarmSeeds);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -6,6 +6,7 @@ export interface ChainConfig {
     usdDecimals: number;
     baseTokens: {address: string, decimals: number}[];
     dexHandler: string;
+    deFarmSeeds: string;
 }
 
 export const getChainConfig = (networkName: string): ChainConfig => {
@@ -27,6 +28,22 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     },
                 ],
                 dexHandler: '0x6E5Ead7745407a7E16AD27C43c3D5D5f308cE96e',
+                deFarmSeeds: ''
+            }
+            break
+        case "blastSepolia":
+            return {
+                usdToken: '0xbC47901f4d2C5fc871ae0037Ea05c3F614690781',
+                usdDecimals: 6,
+                baseTokens: [
+                    {
+                        // WETH
+                        address: '0xA7Fcb606611358afa388b6bd23b3B2F2c6abEd82',
+                        decimals: 18,
+                    },
+                ],
+                dexHandler: '0x6E5Ead7745407a7E16AD27C43c3D5D5f308cE96e',
+                deFarmSeeds: '0x704bBd3665D16B765d73648d8015cDa1Fe2cb185'
             }
             break
         default:
@@ -40,6 +57,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     }
                 ],
                 dexHandler: '',
+                deFarmSeeds: ''
             }
     }
 }
@@ -53,6 +71,7 @@ export interface SingeFarmConfig {
     baseTokens: string[];
     admin: string | undefined;
     dexHandler: string;
+    deFarmSeeds: string;
 }
 
 export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
@@ -66,6 +85,7 @@ export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
         admin: '0x91D02f1803BE80f62d7B7d4d031c0E9d778bc3e3',
         usdToken: chainConfig.usdToken,
         baseTokens: chainConfig.baseTokens.map(token => token.address),
-        dexHandler: chainConfig.dexHandler
+        dexHandler: chainConfig.dexHandler,
+        deFarmSeeds: chainConfig.deFarmSeeds
     }
 }

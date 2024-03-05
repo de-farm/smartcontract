@@ -19,12 +19,14 @@ import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasProtocolInfo.sol";
 import "../interfaces/ISupportedDex.sol";
 import "../interfaces/IDexHandler.sol";
+import "../interfaces/IHasSeedable.sol";
+import "../interfaces/IDeFarmSeeds.sol";
 
 /// @title SingleFarm
 /// @notice Contract for the investors to deposit and for managers to open and close positions
 contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     using ECDSAUpgradeable for bytes32;
-    
+
     bool private calledOpen;
 
     ISingleFarmFactory.Sf public sf;
@@ -49,13 +51,15 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     bool isLinkSigner;
     uint256 public maxFeePay;
     uint256 public holdDexFee;
+    bool public isPrivate;
 
     function initialize(
         ISingleFarmFactory.Sf calldata _sf,
         address _manager,
         uint256 _managerFee,
         address _usdc,
-        address _operator
+        address _operator,
+        bool _isPrivate
     ) public initializer {
         sf = _sf;
         factory = msg.sender;
@@ -71,6 +75,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         fundraisingClosed = false;
         holdDexFee = 0;
         managerFeeReceived = 0;
+        isPrivate = _isPrivate;
     }
 
     modifier onlyOwner() {
@@ -112,6 +117,11 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     function deposit(uint256 amount) external override whenNotPaused {
         if (block.timestamp > endTime) revert AboveMax(endTime, block.timestamp);
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
+
+        if (isPrivate) {
+            IHasSeedable seedable = IHasSeedable(factory);
+            if(IDeFarmSeeds(seedable.deFarmSeeds()).balanceOf(msg.sender, manager) == 0) revert ZeroSeedBalance(manager);
+        }
 
         IDepositConfig depositConfig = IDepositConfig(factory);
         if (amount <  depositConfig.minInvestmentAmount()) revert BelowMin(depositConfig.minInvestmentAmount(), amount);
@@ -193,7 +203,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
 
     function setLinkSigner() public whenNotPaused {
         if (isLinkSigner) revert HasLinkSigner();
-        require(msg.sender == operator || msg.sender == IHasOwnable(factory).owner() 
+        require(msg.sender == operator || msg.sender == IHasOwnable(factory).owner()
         || msg.sender == IHasAdministrable(factory).admin(), "no access");
 
         // Ensure farm is end fundraising
@@ -300,7 +310,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
 
         emit Claimed(msg.sender, amount);
     }
-    
+
     /// @notice Set the `operator` of an farm in case of an emergency
     /// @param _newOperator new `operator` of the farm
     function setOperator(address _newOperator) external onlyOwner {
