@@ -42,7 +42,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                         decimals: 18,
                     },
                 ],
-                dexHandler: '0x6E5Ead7745407a7E16AD27C43c3D5D5f308cE96e',
+                dexHandler: '0xd218db8496729413ca5cb5Ad4DC34078863E66cc',
                 deFarmSeeds: '0x704bBd3665D16B765d73648d8015cDa1Fe2cb185'
             }
             break

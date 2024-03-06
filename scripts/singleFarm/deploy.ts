@@ -36,6 +36,9 @@ async function main() {
   );
 
   if(network.name !== "localhost") {
+    // sleep for 60 seconds to avoid the error: 'contract does not exist'
+    console.log("Sleeping for 60 seconds...");
+    await new Promise((resolve) => setTimeout(resolve, 60000));
     await run("verify:verify", {
       address: await factory.getAddress(),
     });
