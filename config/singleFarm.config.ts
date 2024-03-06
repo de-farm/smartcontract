@@ -42,10 +42,28 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                         decimals: 18,
                     },
                 ],
-                dexHandler: '0xd218db8496729413ca5cb5Ad4DC34078863E66cc',
+                dexHandler: '0x47dB5B0947DeeA19ac3656Ce5B60b1525AF74415',
                 deFarmSeeds: '0x704bBd3665D16B765d73648d8015cDa1Fe2cb185'
             }
-            break
+        case "arbitrumOne":
+            return {
+                usdToken: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+                usdDecimals: 6,
+                baseTokens: [
+                    {
+                        // WETH
+                        address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+                        decimals: 18,
+                    },
+                    {
+                        // WBTC
+                        address: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
+                        decimals: 8,
+                    },
+                ],
+                dexHandler: '0xe7730965068C33e4CbAaAd73ddd3270A0A5AF24a',
+                deFarmSeeds: '',
+            }
         default:
             return {
                 usdToken: '',
@@ -79,10 +97,10 @@ export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
 
     return {
         capacityPerFarm: parseUnits("5000", chainConfig.usdDecimals),
-        minInvestmentAmount: parseUnits("10", chainConfig.usdDecimals),
-        maxInvestmentAmount: parseUnits("1000", chainConfig.usdDecimals),
-        maxLeverage: parseUnits("10", 6),
-        admin: '0x91D02f1803BE80f62d7B7d4d031c0E9d778bc3e3',
+        minInvestmentAmount: parseUnits("20", chainConfig.usdDecimals),
+        maxInvestmentAmount: parseUnits("2000", chainConfig.usdDecimals),
+        maxLeverage: parseUnits("20", 6),
+        admin: '0x4ff6Aabf3d2181d485676560c8fb79c587Fb0eaD',
         usdToken: chainConfig.usdToken,
         baseTokens: chainConfig.baseTokens.map(token => token.address),
         dexHandler: chainConfig.dexHandler,

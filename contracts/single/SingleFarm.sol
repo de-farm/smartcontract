@@ -167,7 +167,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         emit FundraisingClosed(totalRaised);
     }
 
-    function openPosition(bytes memory info) external override openOnce whenNotPaused whenLinkedSigner {
+    function openPosition(bytes calldata info) external override openOnce whenNotPaused whenLinkedSigner {
         if(msg.sender != manager) revert NoAccess(manager, msg.sender);
 
         if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
@@ -227,7 +227,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     /// @notice allows the manager/operator to mark farm as closed
     /// @dev can be called only if theres a position already open
     /// @dev `status` will be `PositionClosed`
-    function closePosition(bytes memory _signature) external override whenNotPaused whenLinkedSigner {
+    function closePosition(bytes calldata _signature) external override whenNotPaused whenLinkedSigner {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.OPENED) revert NoOpenPositions();
 
@@ -283,7 +283,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     }
 
     /// @notice set the `fundDeadline` for a particular farm to cancel the farm early if needed
-    /// @dev can only be called by the `owner` or the `manager` of the farm
+    /// @dev can only be called by the `admin` or the `manager` of the farm
     /// @param newFundDeadline new fundDeadline
     function setFundDeadline(uint256 newFundDeadline) external override {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
@@ -332,6 +332,12 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     /// @dev can only be called by the `admin`
     function liquidate() external override onlyAdmin whenNotPaused {
         if (status != SfStatus.OPENED) revert NotOpened();
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        uint256 balance = dexHandler.getBalance(address(this), USDC);
+        if (balance >= 1) revert NotAbleLiquidate(balance);
+        
         status = SfStatus.LIQUIDATED;
         emit Liquidated();
     }
@@ -407,9 +413,9 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         if (claimed[_investor] || status == SfStatus.OPENED) {
             amount = 0;
         } else if (status == SfStatus.CANCELLED || status == SfStatus.NOT_OPENED) {
-            amount = (totalRaised * userAmount[_investor] * 1e18) / (actualTotalRaised * 1e18);
+            amount = (totalRaised * userAmount[_investor]) / actualTotalRaised;
         } else if (status == SfStatus.CLOSED) {
-            amount = (remainingAmountAfterClose * userAmount[_investor] * 1e18) / (actualTotalRaised * 1e18);
+            amount = (remainingAmountAfterClose * userAmount[_investor]) / actualTotalRaised;
         } else {
             amount = 0;
         }
