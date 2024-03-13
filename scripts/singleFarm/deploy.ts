@@ -35,6 +35,16 @@ async function main() {
     `SingleFarmFactory deployed to ${await factory.getAddress()}`
   );
 
+  console.log("Sleeping for 30 seconds...");
+  await new Promise((resolve) => setTimeout(resolve, 30000));
+
+  if(singleFarmConfig.admin) {
+    await factory.setAdmin(singleFarmConfig.admin);
+  }
+
+  if(singleFarmConfig.baseTokens.length > 0)
+    await factory.addTokens(singleFarmConfig.baseTokens)
+
   if(network.name !== "localhost") {
     // sleep for 60 seconds to avoid the error: 'contract does not exist'
     console.log("Sleeping for 60 seconds...");
@@ -43,13 +53,6 @@ async function main() {
       address: await factory.getAddress(),
     });
   }
-
-  if(singleFarmConfig.admin) {
-    await factory.setAdmin(singleFarmConfig.admin);
-  }
-
-  if(singleFarmConfig.baseTokens.length > 0)
-    await factory.addTokens(singleFarmConfig.baseTokens)
 }
 
 main().catch((error) => {

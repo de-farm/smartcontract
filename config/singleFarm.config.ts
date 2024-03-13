@@ -42,8 +42,8 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                         decimals: 18,
                     },
                 ],
-                dexHandler: '0x47dB5B0947DeeA19ac3656Ce5B60b1525AF74415',
-                deFarmSeeds: '0x704bBd3665D16B765d73648d8015cDa1Fe2cb185'
+                dexHandler: '0xD9ff83b4AE13EA581d4e4c078Fa7b0d7c3fAdB1d',
+                deFarmSeeds: '0x1c50b7145d5D542c73a5b0ecC7b751aCDf9BE929'
             }
         case "arbitrumOne":
             return {
