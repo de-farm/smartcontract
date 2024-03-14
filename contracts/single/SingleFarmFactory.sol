@@ -122,7 +122,7 @@ contract SingleFarmFactory is
         minLeverage = 1e6;
         maxLeverage = _maxLeverage;
         USDC = _usdc;
-        maxManagerFee = 15e18;
+        maxManagerFee = 70e18;
         maxFundraisingPeriod = 1 weeks;
 
         currentOperatorIndex = 0;

@@ -11,7 +11,7 @@ abstract contract ETHFee is OwnableUpgradeable, IHasETHFee {
     uint256 private _ethFee;
 
     function __ETHFee_init() internal onlyInitializing {
-        _ethFee = 1e16;
+        _ethFee = 1e15;
     }
 
     /// @notice set the eth fee to collect the transaction gas from the manager
