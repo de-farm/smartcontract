@@ -58,6 +58,10 @@ describe("Single Farm", function () {
     dexSimulator = await upgrades.deployProxy(
       DexSimulator, []
     ) as unknown as DexSimulator;
+    await dexSimulator.setPaymentFee(
+      await usd.getAddress(),
+      parseUnits('1', USDC_DECIMALS)
+    )
 
     const SingleFarm = await ethers.getContractFactory("SingleFarm");
     const SingleFarmFactory = await ethers.getContractFactory("SingleFarmFactory");
@@ -146,7 +150,7 @@ describe("Single Farm", function () {
       // Enable seeds
       const deFarmSeeds = await ethers.getContractAt("IDeFarmSeedsActions", deFarmSeedsAddress) as unknown as IDeFarmSeedsActions
       const balanceOfDeFarmSeeds = await deFarmSeeds.balanceOf(manager.address, manager.address)
-      if(balanceOfDeFarmSeeds === 0) {
+      if(balanceOfDeFarmSeeds === 0n) {
         await deFarmSeeds.connect(manager).buySeeds(manager.address, 1, 36000)
       }
 
@@ -316,7 +320,7 @@ describe("Single Farm", function () {
           expect(farmBalanaceAfter).to.equals(farmBalanaceBefore + secondDepositAmount);
         });
       })
-/*
+
       describe("Should be able to cancel the farms", function () {
         let snapshotId: any
         this.beforeAll(async function () {
@@ -372,36 +376,19 @@ describe("Single Farm", function () {
           snapshotId = await network.provider.send('evm_snapshot');
         })
 
-        it("Should let the manager close the fundraising and open position in one transaction", async function () {
+        it("Should let the manager close the fundraising", async function () {
           await time.increase(farmInfo.fundraisingPeriod)
 
-          const operatorBalanceBefore = await usd.balanceOf(operator.address)
-          const treasuryBalanceBefore = await usd.balanceOf(treasury.address)
-          const totalRaised = await singleFarm.totalRaised()
+          const tx = await singleFarm.connect(manager).closeFundraising();
 
-          const hash = hashMessage("limit")
-          // const tx = await singleFarm.connect(manager).closeFundraisingAndOpenPosition(hash);
-          const tx = await singleFarm.connect(manager).closeFundraisingAndOpenPosition(hash);
+          expect(tx).to.emit(singleFarm, "FundraisingClosed").exist
 
-          expect(tx).to.emit(singleFarm, "FundraisingClosedAndPositionOpened").exist
-
-          expect(await singleFarm.status()).to.equals(Status.OPENED);
+          expect(await singleFarm.status()).to.equals(Status.NOT_OPENED);
           expect(await singleFarm.endTime()).to.equals(await time.latest());
 
-          // Protocol Fee
-          const [numeratorProtocolFee, denominatorProtocolFee] = await singleFarmFactory.getProtocolFee()
-          const expectedProtocolFee = totalRaised*numeratorProtocolFee/denominatorProtocolFee
-          const remaining = totalRaised - expectedProtocolFee
-
-          const operatorBalanceAfter = await usd.balanceOf(operator.address)
-          const dexBalanceAfter = await dexSimulator.balances(await singleFarm.getAddress())
-          const treasuryBalanceAfter = await usd.balanceOf(treasury.address)
-
-          expect(operatorBalanceAfter + dexBalanceAfter).to.equals(operatorBalanceBefore + remaining)
-          expect(treasuryBalanceAfter).to.equals(treasuryBalanceBefore + expectedProtocolFee)
         });
 
-        describe("Should let the manager liquidate the farm", function () {
+        describe("Should let the admin liquidate the farm", function () {
           let snapshotId: any
           this.beforeAll(async function () {
             snapshotId = await network.provider.send('evm_snapshot');
@@ -414,7 +401,7 @@ describe("Single Farm", function () {
             expect(await singleFarm.status()).to.equals(Status.LIQUIDATED);
           });
 
-          it("Should be not able to claim when the farm was liquidated", async function () {
+          /* it("Should be not able to claim when the farm was liquidated", async function () {
             expect(await singleFarm.status()).to.equals(Status.LIQUIDATED);
             let claimableAmount = await singleFarm.claimableAmount(user.address)
             expect(claimableAmount).to.equals(0)
@@ -423,13 +410,13 @@ describe("Single Farm", function () {
 
             await expect(singleFarm.connect(user).claim())
               .to.be.revertedWithCustomError(singleFarm, 'NotFinalised')
-          });
+          }); */
 
           this.afterAll(async function () {
             await network.provider.send("evm_revert", [snapshotId]);
           })
         })
-
+/*
         describe("Should let the manager close position with loss", function () {
           it("Should let the manager close position", async function () {
             expect(await singleFarm.status()).to.equals(Status.OPENED);
@@ -481,12 +468,12 @@ describe("Single Farm", function () {
             const userBalanceAfter = await usd.balanceOf(manager.address)
 
             expect(userBalanceAfter).to.equals(userBalanceBefore + claimableAmount)
-          });
+          }); */
         })
 
-        this.afterAll(async function () {
+        /* this.afterAll(async function () {
           await network.provider.send("evm_revert", [snapshotId]);
-        })*/
+        }) */
       })
 /*
       describe("Should let the manager close the fundraising and open position", function () {
