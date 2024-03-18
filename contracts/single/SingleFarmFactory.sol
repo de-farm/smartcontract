@@ -25,6 +25,7 @@ import "../utils/SupportedDex.sol";
 import "../utils/ProtocolInfo.sol";
 import "../utils/Constants.sol";
 import "../utils/OperatorManager.sol";
+import "../utils/BlastYield.sol";
 
 /// @title SingleFarm Factory
 /// @notice Contract for managers create a new instance
@@ -45,7 +46,8 @@ contract SingleFarmFactory is
     ProtocolInfo,
     ETHFee,
     SupportedDex,
-    OperatorManager
+    OperatorManager,
+    BlastYield
 {
     using ECDSAUpgradeable for bytes32;
 
@@ -127,6 +129,8 @@ contract SingleFarmFactory is
 
         currentOperatorIndex = 0;
         deFarmSeeds = _deFarmSeeds;
+
+        __BlastYield_init(owner());
 
         emit FarmFactoryInitialized(
             _singleFarmImplementation,

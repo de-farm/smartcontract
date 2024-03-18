@@ -21,10 +21,11 @@ import "../interfaces/ISupportedDex.sol";
 import "../interfaces/IDexHandler.sol";
 import "../interfaces/IHasSeedable.sol";
 import "../interfaces/IDeFarmSeeds.sol";
+import "../utils/BlastYield.sol";
 
 /// @title SingleFarm
 /// @notice Contract for the investors to deposit and for managers to open and close positions
-contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
+contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield {
     using ECDSAUpgradeable for bytes32;
 
     bool private calledOpen;
@@ -76,6 +77,8 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         holdDexFee = 0;
         managerFeeReceived = 0;
         isPrivate = _isPrivate;
+
+        __BlastYield_init(IHasOwnable(factory).owner());
     }
 
     modifier onlyOwner() {
@@ -337,7 +340,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
 
         uint256 balance = dexHandler.getBalance(address(this), USDC);
         if (balance >= 1) revert NotAbleLiquidate(balance);
-        
+
         status = SfStatus.LIQUIDATED;
         emit Liquidated();
     }

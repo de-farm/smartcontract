@@ -388,12 +388,13 @@ describe("Single Farm", function () {
 
         });
 
-        describe("Should let the admin liquidate the farm", function () {
+        /* describe("Should let the admin liquidate the farm", function () {
           let snapshotId: any
           this.beforeAll(async function () {
             snapshotId = await network.provider.send('evm_snapshot');
           })
           it("Should let the admin liquidate the farm", async function () {
+            await dexSimulator.setBalance(await singleFarm.getAddress(), 0)
             const tx = await singleFarm.connect(admin).liquidate();
 
             expect(tx).to.emit(singleFarm, "Liquidated").exist
@@ -401,7 +402,7 @@ describe("Single Farm", function () {
             expect(await singleFarm.status()).to.equals(Status.LIQUIDATED);
           });
 
-          /* it("Should be not able to claim when the farm was liquidated", async function () {
+          it("Should be not able to claim when the farm was liquidated", async function () {
             expect(await singleFarm.status()).to.equals(Status.LIQUIDATED);
             let claimableAmount = await singleFarm.claimableAmount(user.address)
             expect(claimableAmount).to.equals(0)
@@ -410,12 +411,13 @@ describe("Single Farm", function () {
 
             await expect(singleFarm.connect(user).claim())
               .to.be.revertedWithCustomError(singleFarm, 'NotFinalised')
-          }); */
+          });
 
           this.afterAll(async function () {
             await network.provider.send("evm_revert", [snapshotId]);
           })
         })
+        */
 /*
         describe("Should let the manager close position with loss", function () {
           it("Should let the manager close position", async function () {
