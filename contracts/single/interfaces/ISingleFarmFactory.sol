@@ -13,7 +13,8 @@ interface ISingleFarmFactory {
         uint256 maxManagerFeeDenominator,
         address usdc,
         address admin,
-        address treasury
+        address treasury,
+        address deFarmSeeds
     );
 
     event FarmCreated(
@@ -29,7 +30,8 @@ interface ISingleFarmFactory {
         uint256 managerFeeNumerator,
         uint256 managerFeeDenominator,
         address operator,
-        uint256 time
+        uint256 time,
+        bool isPrivate
     );
 
     event CapacityPerFarmChanged(uint256 capacity);
@@ -41,6 +43,7 @@ interface ISingleFarmFactory {
     event MaxManagerFeeChanged(uint256 maxManagerFee);
     event FarmImplementationChanged(address indexed df);
     event UsdcAddressChanged(address indexed usdc);
+    event DefarmSeedsAddressChanged(address indexed deFarmSeeds);
 
     struct Sf {
         address baseToken;
@@ -52,7 +55,7 @@ interface ISingleFarmFactory {
         uint256 leverage;
     }
 
-    function createFarm(Sf calldata _sf, uint256 _managerFee) external payable returns (address);
+    function createFarm(Sf calldata _sf, uint256 _managerFee, bool _isPrivate) external payable returns (address);
 
     function setCapacityPerFarm(uint256 _capacity) external;
 

@@ -6,7 +6,7 @@ error BelowMin(uint256 min, uint256 given);
 error ZeroAddress();
 error ZeroAmount();
 error ZeroTokenBalance();
-error ZeroSeedBalance();
+error ZeroSeedBalance(address subject);
 error NoAccess(address desired, address given);
 error InvalidSignature(address desired);
 error InvalidAddress(address given);

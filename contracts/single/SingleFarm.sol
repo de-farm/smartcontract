@@ -19,12 +19,15 @@ import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasProtocolInfo.sol";
 import "../interfaces/ISupportedDex.sol";
 import "../interfaces/IDexHandler.sol";
+import "../interfaces/IHasSeedable.sol";
+import "../interfaces/IDeFarmSeeds.sol";
+import "../utils/BlastYield.sol";
 
 /// @title SingleFarm
 /// @notice Contract for the investors to deposit and for managers to open and close positions
-contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
+contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield {
     using ECDSAUpgradeable for bytes32;
-    
+
     bool private calledOpen;
 
     ISingleFarmFactory.Sf public sf;
@@ -49,13 +52,15 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     bool isLinkSigner;
     uint256 public maxFeePay;
     uint256 public holdDexFee;
+    bool public isPrivate;
 
     function initialize(
         ISingleFarmFactory.Sf calldata _sf,
         address _manager,
         uint256 _managerFee,
         address _usdc,
-        address _operator
+        address _operator,
+        bool _isPrivate
     ) public initializer {
         sf = _sf;
         factory = msg.sender;
@@ -71,6 +76,9 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         fundraisingClosed = false;
         holdDexFee = 0;
         managerFeeReceived = 0;
+        isPrivate = _isPrivate;
+
+        __BlastYield_init(IHasOwnable(factory).owner());
     }
 
     modifier onlyOwner() {
@@ -112,6 +120,11 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     function deposit(uint256 amount) external override whenNotPaused {
         if (block.timestamp > endTime) revert AboveMax(endTime, block.timestamp);
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
+
+        if (isPrivate) {
+            IHasSeedable seedable = IHasSeedable(factory);
+            if(IDeFarmSeeds(seedable.deFarmSeeds()).balanceOf(msg.sender, manager) == 0) revert ZeroSeedBalance(manager);
+        }
 
         IDepositConfig depositConfig = IDepositConfig(factory);
         if (amount <  depositConfig.minInvestmentAmount()) revert BelowMin(depositConfig.minInvestmentAmount(), amount);
@@ -157,7 +170,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         emit FundraisingClosed(totalRaised);
     }
 
-    function openPosition(bytes memory info) external override openOnce whenNotPaused whenLinkedSigner {
+    function openPosition(bytes calldata info) external override openOnce whenNotPaused whenLinkedSigner {
         if(msg.sender != manager) revert NoAccess(manager, msg.sender);
 
         if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
@@ -193,7 +206,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
 
     function setLinkSigner() public whenNotPaused {
         if (isLinkSigner) revert HasLinkSigner();
-        require(msg.sender == operator || msg.sender == IHasOwnable(factory).owner() 
+        require(msg.sender == operator || msg.sender == IHasOwnable(factory).owner()
         || msg.sender == IHasAdministrable(factory).admin(), "no access");
 
         // Ensure farm is end fundraising
@@ -217,7 +230,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     /// @notice allows the manager/operator to mark farm as closed
     /// @dev can be called only if theres a position already open
     /// @dev `status` will be `PositionClosed`
-    function closePosition(bytes memory _signature) external override whenNotPaused whenLinkedSigner {
+    function closePosition(bytes calldata _signature) external override whenNotPaused whenLinkedSigner {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.OPENED) revert NoOpenPositions();
 
@@ -273,7 +286,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     }
 
     /// @notice set the `fundDeadline` for a particular farm to cancel the farm early if needed
-    /// @dev can only be called by the `owner` or the `manager` of the farm
+    /// @dev can only be called by the `admin` or the `manager` of the farm
     /// @param newFundDeadline new fundDeadline
     function setFundDeadline(uint256 newFundDeadline) external override {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
@@ -300,7 +313,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
 
         emit Claimed(msg.sender, amount);
     }
-    
+
     /// @notice Set the `operator` of an farm in case of an emergency
     /// @param _newOperator new `operator` of the farm
     function setOperator(address _newOperator) external onlyOwner {
@@ -322,6 +335,12 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
     /// @dev can only be called by the `admin`
     function liquidate() external override onlyAdmin whenNotPaused {
         if (status != SfStatus.OPENED) revert NotOpened();
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+        uint256 balance = dexHandler.getBalance(address(this), USDC);
+        if (balance >= 1) revert NotAbleLiquidate(balance);
+
         status = SfStatus.LIQUIDATED;
         emit Liquidated();
     }
@@ -397,9 +416,9 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable {
         if (claimed[_investor] || status == SfStatus.OPENED) {
             amount = 0;
         } else if (status == SfStatus.CANCELLED || status == SfStatus.NOT_OPENED) {
-            amount = (totalRaised * userAmount[_investor] * 1e18) / (actualTotalRaised * 1e18);
+            amount = (totalRaised * userAmount[_investor]) / actualTotalRaised;
         } else if (status == SfStatus.CLOSED) {
-            amount = (remainingAmountAfterClose * userAmount[_investor] * 1e18) / (actualTotalRaised * 1e18);
+            amount = (remainingAmountAfterClose * userAmount[_investor]) / actualTotalRaised;
         } else {
             amount = 0;
         }

@@ -35,8 +35,8 @@ interface ISingleFarm {
 
     function deposit(uint256 amount) external;
     function closeFundraising() external;
-    function openPosition(bytes memory info) external;
-    function closePosition(bytes memory _signature) external;
+    function openPosition(bytes calldata info) external;
+    function closePosition(bytes calldata _signature) external;
     function cancelByAdmin() external;
     function cancelByManager() external;
     function liquidate() external;

@@ -17,12 +17,12 @@ contract DexSimulator is OwnableUpgradeable, IDexHandler {
         __Ownable_init();
     }
 
-    function setSigner(address wallet, address signer) external {
+    function setSigner(address wallet, address signer) external onlyOwner {
         require(msg.sender == wallet);
         signers[wallet] = signer;
     }
 
-    function setBalance(address wallet, int256 balance) external {
+    function setBalance(address wallet, int256 balance) external onlyOwner {
         balances[wallet] = balance;
     }
 
@@ -85,7 +85,7 @@ contract DexSimulator is OwnableUpgradeable, IDexHandler {
         return (address(this), instruction);
     }
 
-    function setPaymentFee(address _feeToken, uint256 _feeAmount) external {
+    function setPaymentFee(address _feeToken, uint256 _feeAmount) external onlyOwner {
         feeToken = _feeToken;
         feeAmount = _feeAmount;
     }

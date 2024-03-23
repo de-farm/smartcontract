@@ -17,7 +17,8 @@ interface IFQuerier {
         IPerpEngine.Balance balance;
     }
 
-    struct Risk {
+    // legacy risk to maintain backcompat
+    struct LegacyRisk {
         int128 longWeightInitialX18;
         int128 shortWeightInitialX18;
         int128 longWeightMaintenanceX18;
@@ -29,7 +30,7 @@ interface IFQuerier {
     struct SpotProduct {
         uint32 productId;
         int128 oraclePriceX18;
-        Risk risk;
+        LegacyRisk risk;
         ISpotEngine.Config config;
         ISpotEngine.State state;
         ISpotEngine.LpState lpState;
@@ -39,7 +40,7 @@ interface IFQuerier {
     struct PerpProduct {
         uint32 productId;
         int128 oraclePriceX18;
-        Risk risk;
+        LegacyRisk risk;
         IPerpEngine.State state;
         IPerpEngine.LpState lpState;
         BookInfo bookInfo;
@@ -58,7 +59,7 @@ interface IFQuerier {
         PerpProduct[] perpProducts;
     }
 
-    function getAllProducts() external view returns (ProductInfo memory);
+    function getAllProducts(uint32 isoGroup) external view returns (ProductInfo memory);
 
     function getSpotProduct(uint32 productId) external view returns (SpotProduct memory);
 
