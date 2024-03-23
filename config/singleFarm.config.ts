@@ -6,6 +6,7 @@ export interface ChainConfig {
     usdDecimals: number;
     baseTokens: {address: string, decimals: number}[];
     dexHandler: string;
+    deFarmSeeds: string;
 }
 
 export const getChainConfig = (networkName: string): ChainConfig => {
@@ -27,6 +28,22 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     },
                 ],
                 dexHandler: '0x6E5Ead7745407a7E16AD27C43c3D5D5f308cE96e',
+                deFarmSeeds: ''
+            }
+            break
+        case "blastSepolia":
+            return {
+                usdToken: '0xbC47901f4d2C5fc871ae0037Ea05c3F614690781',
+                usdDecimals: 6,
+                baseTokens: [
+                    {
+                        // WETH
+                        address: '0xA7Fcb606611358afa388b6bd23b3B2F2c6abEd82',
+                        decimals: 18,
+                    },
+                ],
+                dexHandler: '0xD9ff83b4AE13EA581d4e4c078Fa7b0d7c3fAdB1d',
+                deFarmSeeds: '0x1c50b7145d5D542c73a5b0ecC7b751aCDf9BE929'
             }
         case "arbitrumOne":
             return {
@@ -45,6 +62,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     },
                 ],
                 dexHandler: '0xe7730965068C33e4CbAaAd73ddd3270A0A5AF24a',
+                deFarmSeeds: '',
             }
         default:
             return {
@@ -57,6 +75,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     }
                 ],
                 dexHandler: '',
+                deFarmSeeds: ''
             }
     }
 }
@@ -70,19 +89,21 @@ export interface SingeFarmConfig {
     baseTokens: string[];
     admin: string | undefined;
     dexHandler: string;
+    deFarmSeeds: string;
 }
 
 export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
     const chainConfig = getChainConfig(networkName)
 
     return {
-        capacityPerFarm: parseUnits("5000", chainConfig.usdDecimals),
+        capacityPerFarm: parseUnits("10000", chainConfig.usdDecimals),
         minInvestmentAmount: parseUnits("20", chainConfig.usdDecimals),
-        maxInvestmentAmount: parseUnits("2000", chainConfig.usdDecimals),
+        maxInvestmentAmount: parseUnits("10000", chainConfig.usdDecimals),
         maxLeverage: parseUnits("20", 6),
         admin: '0x4ff6Aabf3d2181d485676560c8fb79c587Fb0eaD',
         usdToken: chainConfig.usdToken,
         baseTokens: chainConfig.baseTokens.map(token => token.address),
-        dexHandler: chainConfig.dexHandler
+        dexHandler: chainConfig.dexHandler,
+        deFarmSeeds: chainConfig.deFarmSeeds
     }
 }
