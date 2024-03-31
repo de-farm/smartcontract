@@ -9,6 +9,9 @@ async function main() {
   const SingleFarm = await ethers.getContractFactory("SingleFarm");
   const singleFarm = await SingleFarm.deploy()
   if(network.name !== "localhost") {
+    // sleep for 60 seconds to avoid the error: 'contract does not exist'
+    console.log("Sleeping for 60 seconds...");
+    await new Promise((resolve) => setTimeout(resolve, 60000));
     await run("verify:verify", {
       address: await singleFarm.getAddress(),
     });
@@ -24,6 +27,7 @@ async function main() {
       singleFarmConfig.maxInvestmentAmount,
       singleFarmConfig.maxLeverage,
       singleFarmConfig.usdToken,
+      singleFarmConfig.deFarmSeeds
     ]
   )
 
@@ -31,11 +35,8 @@ async function main() {
     `SingleFarmFactory deployed to ${await factory.getAddress()}`
   );
 
-  if(network.name !== "localhost") {
-    await run("verify:verify", {
-      address: await factory.getAddress(),
-    });
-  }
+  console.log("Sleeping for 30 seconds...");
+  await new Promise((resolve) => setTimeout(resolve, 30000));
 
   if(singleFarmConfig.admin) {
     await factory.setAdmin(singleFarmConfig.admin);
@@ -43,6 +44,15 @@ async function main() {
 
   if(singleFarmConfig.baseTokens.length > 0)
     await factory.addTokens(singleFarmConfig.baseTokens)
+
+  if(network.name !== "localhost") {
+    // sleep for 60 seconds to avoid the error: 'contract does not exist'
+    console.log("Sleeping for 60 seconds...");
+    await new Promise((resolve) => setTimeout(resolve, 60000));
+    await run("verify:verify", {
+      address: await factory.getAddress(),
+    });
+  }
 }
 
 main().catch((error) => {

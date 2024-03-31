@@ -16,6 +16,8 @@ import "./interfaces/ISingleFarmFactory.sol";
 import "./interfaces/IDepositConfig.sol";
 import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasAdministrable.sol";
+import "../interfaces/IHasSeedable.sol";
+import "../interfaces/IDeFarmSeeds.sol";
 import "../utils/WhitelistedTokens.sol";
 import "../utils/Administrable.sol";
 import "../utils/ETHFee.sol";
@@ -23,6 +25,7 @@ import "../utils/SupportedDex.sol";
 import "../utils/ProtocolInfo.sol";
 import "../utils/Constants.sol";
 import "../utils/OperatorManager.sol";
+import "../utils/BlastYield.sol";
 
 /// @title SingleFarm Factory
 /// @notice Contract for managers create a new instance
@@ -33,6 +36,7 @@ contract SingleFarmFactory is
     ISingleFarmFactory,
     IHasPausable,
     IDepositConfig,
+    IHasSeedable,
     OwnableUpgradeable,
     PausableUpgradeable,
     EIP712Upgradeable,
@@ -42,7 +46,8 @@ contract SingleFarmFactory is
     ProtocolInfo,
     ETHFee,
     SupportedDex,
-    OperatorManager
+    OperatorManager,
+    BlastYield
 {
     using ECDSAUpgradeable for bytes32;
 
@@ -74,6 +79,7 @@ contract SingleFarmFactory is
     mapping(address => bool) public isFarm;
 
     uint public currentOperatorIndex;
+    address public deFarmSeeds;
 
     /*//////////////////////////////////////////////////////////////
                             INITIALIZE
@@ -94,7 +100,8 @@ contract SingleFarmFactory is
         uint256 _minInvestmentAmount,
         uint256 _maxInvestmentAmount,
         uint256 _maxLeverage,
-        address _usdc
+        address _usdc,
+        address _deFarmSeeds
     ) public initializer {
         __Ownable_init();
         __Pausable_init();
@@ -117,10 +124,13 @@ contract SingleFarmFactory is
         minLeverage = 1e6;
         maxLeverage = _maxLeverage;
         USDC = _usdc;
-        maxManagerFee = 15e18;
+        maxManagerFee = 70e18;
         maxFundraisingPeriod = 1 weeks;
 
         currentOperatorIndex = 0;
+        deFarmSeeds = _deFarmSeeds;
+
+        __BlastYield_init(owner());
 
         emit FarmFactoryInitialized(
             _singleFarmImplementation,
@@ -133,7 +143,8 @@ contract SingleFarmFactory is
             FEE_DENOMINATOR,
             _usdc,
             admin(),
-            treasury()
+            treasury(),
+            _deFarmSeeds
         );
     }
 
@@ -156,8 +167,14 @@ contract SingleFarmFactory is
     /// @return farm address of the proxy contract which is deployed
     function createFarm(
         Sf calldata _sf,
-        uint256 _managerFee
+        uint256 _managerFee,
+        bool _isPrivate
     ) external payable override whenNotPaused returns (address farm) {
+        if (_isPrivate) {
+            // When the manager has initialized seeds before creating a farm
+            if(IDeFarmSeeds(deFarmSeeds).balanceOf(msg.sender, msg.sender) == 0) revert ZeroSeedBalance(msg.sender);
+        }
+
         require(numberOperators() > 0, "No operators available");
         address selectedOperator = getOperator(currentOperatorIndex % numberOperators());
 
@@ -179,12 +196,13 @@ contract SingleFarmFactory is
         ERC1967Proxy singleFarm = new ERC1967Proxy(
             ClonesUpgradeable.clone(singleFarmImplementation),
             abi.encodeWithSignature(
-                "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,address)",
+                "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,address,bool)",
                 _sf,
                 msg.sender,
                 _managerFee,
                 USDC,
-                selectedOperator
+                selectedOperator,
+                _isPrivate
             )
         );
 
@@ -205,7 +223,8 @@ contract SingleFarmFactory is
             _managerFee,
             FEE_DENOMINATOR,
             selectedOperator,
-            block.timestamp
+            block.timestamp,
+            _isPrivate
         );
     }
 
@@ -214,31 +233,31 @@ contract SingleFarmFactory is
     //////////////////////////////////////////////////////////////*/
 
     /// @notice set the max capacity of collateral which can be raised per farm
-    /// @dev can only be called by the `owner`
+    /// @dev can only be called by the `admin`
     /// @param _capacity max capacity of the collateral which can be raised per farm
-    function setCapacityPerFarm(uint256 _capacity) external override onlyOwner {
+    function setCapacityPerFarm(uint256 _capacity) external override onlyAdmin {
         if (_capacity < 1) revert ZeroAmount();
         capacityPerFarm = _capacity;
         emit CapacityPerFarmChanged(_capacity);
     }
 
     /// @notice set the min investment of collateral an investor can invest per farm
-    /// @dev can only be called by the `owner`
+    /// @dev can only be called by the `admin`
     /// @param _amount min investment of collateral an investor can invest per farm
     function setMinInvestmentAmount(
         uint256 _amount
-    ) external override onlyOwner {
+    ) external override onlyAdmin {
         if (_amount < 1) revert ZeroAmount();
         minInvestmentAmount = _amount;
         emit MinInvestmentAmountChanged(_amount);
     }
 
     /// @notice set the max investment of collateral an investor can invest per farm
-    /// @dev can only be called by the `owner`
+    /// @dev can only be called by the `admin`
     /// @param _amount max investment of collateral an investor can invest per farm
     function setMaxInvestmentAmount(
         uint256 _amount
-    ) external override onlyOwner {
+    ) external override onlyAdmin {
         if (_amount <= minInvestmentAmount)
             revert BelowMin(minInvestmentAmount, _amount);
         maxInvestmentAmount = _amount;
@@ -246,26 +265,26 @@ contract SingleFarmFactory is
     }
 
     /// @notice set the max leverage a manager can use when creating an farm
-    /// @dev can only be called by the `owner`
+    /// @dev can only be called by the `admin`
     /// @param _maxLeverage max leverage a manager can use when creating an farm
-    function setMaxLeverage(uint256 _maxLeverage) external override onlyOwner {
+    function setMaxLeverage(uint256 _maxLeverage) external override onlyAdmin {
         if (_maxLeverage <= 1e6) revert AboveMax(1e6, _maxLeverage);
         maxLeverage = _maxLeverage;
         emit MaxLeverageChanged(_maxLeverage);
     }
 
-    function setMinLeverage(uint256 _minLeverage) external override onlyOwner {
+    function setMinLeverage(uint256 _minLeverage) external override onlyAdmin {
         if (_minLeverage < 1e6) revert BelowMin(1e6, _minLeverage);
         minLeverage = _minLeverage;
         emit MinLeverageChanged(_minLeverage);
     }
 
     /// @notice set the max fundraising period a manager can use when creating a farm
-    /// @dev can only be called by the `owner`
+    /// @dev can only be called by the `admin`
     /// @param _maxFundraisingPeriod max fundraising period a manager can use when creating a farm
     function setMaxFundraisingPeriod(
         uint256 _maxFundraisingPeriod
-    ) external onlyOwner {
+    ) external onlyAdmin {
         if (_maxFundraisingPeriod < 15 minutes)
             revert BelowMin(15 minutes, _maxFundraisingPeriod);
         maxFundraisingPeriod = _maxFundraisingPeriod;
@@ -273,11 +292,11 @@ contract SingleFarmFactory is
     }
 
     /// @notice set the manager fee percent to calculate the manager fees on profits depending on the governance
-    /// @dev can only be called by the `owner`
+    /// @dev can only be called by the `admin`
     /// @param newMaxManagerFee the percent which is used to calculate the manager fees on profits
     function setMaxManagerFee(
         uint256 newMaxManagerFee
-    ) external override onlyOwner {
+    ) external override onlyAdmin {
         if (newMaxManagerFee > FEE_DENOMINATOR)
             revert AboveMax(FEE_DENOMINATOR, newMaxManagerFee);
         maxManagerFee = newMaxManagerFee;
@@ -285,20 +304,26 @@ contract SingleFarmFactory is
     }
 
     /// @notice set the new farm implementation contract address for creating farms
-    /// @dev can only be called by the `owner`
+    /// @dev can only be called by the `admin`
     /// @param sf the new farm implementation contract address for creating farms
-    function setSfImplementation(address sf) external override onlyOwner {
+    function setSfImplementation(address sf) external override onlyAdmin {
         singleFarmImplementation = sf;
         emit FarmImplementationChanged(sf);
     }
 
     /// @notice set the usdc address
-    /// @dev can only be called by the `owner`
+    /// @dev can only be called by the `admin`
     /// @param _usdc the usdc address
-    function setUsdc(address _usdc) external onlyOwner {
+    function setUsdc(address _usdc) external onlyAdmin {
         if (_usdc == address(0)) revert ZeroAddress();
         USDC = _usdc;
         emit UsdcAddressChanged(_usdc);
+    }
+
+    function setDeFarmSeeds(address _deFarmSeeds) external onlyOwner {
+        if (_deFarmSeeds == address(0)) revert ZeroAddress();
+        deFarmSeeds = _deFarmSeeds;
+        emit DefarmSeedsAddressChanged(_deFarmSeeds);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -313,7 +338,7 @@ contract SingleFarmFactory is
         bool isEth,
         address token,
         uint256 amount
-    ) external onlyAdmin returns (bool) {
+    ) external onlyOwner returns (bool) {
         if (isEth) {
             payable(receiver).transfer(amount);
         } else {
