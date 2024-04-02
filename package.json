@@ -7,6 +7,7 @@
     "compile-types": "hardhat --config hardhat.config.ts typechain && hardhat export-abi",
     "deploy:SingleFarm:local": "hardhat run ./scripts/singleFarm/deploy.ts --network localhost",
     "deploy:SingleFarm:blastSepolia": "hardhat run ./scripts/singleFarm/deploy.ts --network blastSepolia",
+    "upgrade:SingleFarm:blastSepolia": "hardhat run ./scripts/singleFarm/upgrade.ts --network blastSepolia",
     "deploy:SingleFarm:blast": "hardhat run ./scripts/singleFarm/deploy.ts --network blast",
     "deploy:SeasonalFarm:blastSepolia": "hardhat run ./scripts/seasonalFarm/deploy.ts --network blastSepolia",
     "deploy:SingleFarm:arbitrumSepolia": "hardhat run ./scripts/singleFarm/deploy.ts --network arbitrumSepolia",

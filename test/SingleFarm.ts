@@ -15,7 +15,7 @@ enum Status {
 }
 
 const deFarmSeedsAddress = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0'
-const USDC_DECIMALS = 6
+const USDC_DECIMALS = 18
 const BTC_DECIMALS = 18
 const ETH_DECIMALS = 18
 const DEFAULT_MANAGER_FEE = parseUnits('70', 18)
@@ -250,6 +250,7 @@ describe("Single Farm", function () {
     it("Should has a valid farm", async function () {
       expect(await singleFarmFactory.isFarm(await singleFarm.getAddress())).to.be.true;
 
+      expect(await singleFarm.maxFeePay()).to.equals(parseUnits("10", await usd.decimals()));
       expect(await singleFarm.status()).to.equals(Status.NOT_OPENED);
       expect(await singleFarm.factory()).to.equals(await singleFarmFactory.getAddress());
       expect(await singleFarm.manager()).to.equals(manager.address);

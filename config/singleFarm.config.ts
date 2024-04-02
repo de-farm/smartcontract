@@ -86,7 +86,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
         default:
             return {
                 usdToken: '',
-                usdDecimals: 6,
+                usdDecimals: 18,
                 baseTokens: [
                 ],
                 dexHandler: '',
