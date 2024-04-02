@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
 import "../utils/Constants.sol";
 import "../utils/Errors.sol";
@@ -71,7 +72,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         fundDeadline = 72 hours;
         USDC = _usdc;
         isLinkSigner = false;
-        maxFeePay = 10000000; // 10e6
+        maxFeePay = 10*(10**IERC20MetadataUpgradeable(_usdc).decimals());
         status = SfStatus.NOT_OPENED;
         fundraisingClosed = false;
         holdDexFee = 0;

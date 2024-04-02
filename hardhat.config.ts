@@ -33,6 +33,14 @@ const config: HardhatUserConfig = {
           process.env.OWNER_PRIVATE_KEY,
         ]:[],
     },
+    blast : {
+      url: 'https://rpc.ankr.com/blast',
+      chainId: 81457,
+      accounts: process.env.OWNER_PRIVATE_KEY
+        ?[
+          process.env.OWNER_PRIVATE_KEY,
+        ]:[],
+    },
     arbitrumOne : {
       url: `https://arb1.arbitrum.io/rpc`,
       chainId: 42161,
@@ -46,6 +54,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       arbitrumSepolia : process.env.ARBISCAN_API_KEY || "Q64QDZTGG8Q5R97T6E2K2ZD2638NDSPFKM",
       blastSepolia : process.env.BLASTSCAN_API_KEY || "blast_sepolia",
+      blast : process.env.BLASTSCAN_API_KEY || "",
       arbitrumOne: process.env.ARBISCAN_API_KEY || "B2VTSN8QBY1DDINSZHNRSH9CJZDGC37VQ2",
     },
     customChains: [
@@ -63,6 +72,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: "https://api.routescan.io/v2/network/testnet/evm/168587773/etherscan",
           browserURL: "https://testnet.blastscan.io/"
+        }
+      },
+      {
+        network: "blast",
+        chainId: 81457,
+        urls: {
+          apiURL: "https://api.blastscan.io/api",
+          browserURL: "https://blastscan.io/"
         }
       }
     ]
