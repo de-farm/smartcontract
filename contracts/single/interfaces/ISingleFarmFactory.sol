@@ -29,7 +29,6 @@ interface ISingleFarmFactory {
         address indexed manager,
         uint256 managerFeeNumerator,
         uint256 managerFeeDenominator,
-        address operator,
         uint256 time,
         bool isPrivate
     );

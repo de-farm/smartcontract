@@ -3,8 +3,6 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
 
 import "../utils/Constants.sol";
@@ -26,9 +24,7 @@ import "../utils/BlastYield.sol";
 
 /// @title SingleFarm
 /// @notice Contract for the investors to deposit and for managers to open and close positions
-contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield {
-    using ECDSAUpgradeable for bytes32;
-
+contract SingleFarm is ISingleFarm, Initializable, BlastYield {
     bool private calledOpen;
 
     ISingleFarmFactory.Sf public sf;
@@ -37,7 +33,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
 
     address public factory;
     address public manager; // Farm manager
-    address public operator; // Dex external account with link signer
     uint256 public endTime;
     uint256 public fundDeadline;
     uint256 public totalRaised;
@@ -50,7 +45,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
     mapping(address => bool) public claimed;
     uint256 private managerFeeNumerator;
     bool fundraisingClosed;
-    bool isLinkSigner;
     uint256 public maxFeePay;
     uint256 public holdDexFee;
     bool public isPrivate;
@@ -60,18 +54,15 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         address _manager,
         uint256 _managerFee,
         address _usdc,
-        address _operator,
         bool _isPrivate
     ) public initializer {
         sf = _sf;
         factory = msg.sender;
         manager = _manager;
         managerFeeNumerator = _managerFee;
-        operator = _operator;
         endTime = block.timestamp + _sf.fundraisingPeriod;
         fundDeadline = 72 hours;
         USDC = _usdc;
-        isLinkSigner = false;
         maxFeePay = 10*(10**IERC20MetadataUpgradeable(_usdc).decimals());
         status = SfStatus.NOT_OPENED;
         fundraisingClosed = false;
@@ -105,11 +96,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
 
     modifier whenNotPaused() {
         require(!IHasPausable(factory).isPaused(), "contracts paused");
-        _;
-    }
-
-    modifier whenLinkedSigner() {
-        require(isLinkSigner, "farm is not linked with a signer");
         _;
     }
 
@@ -171,7 +157,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         emit FundraisingClosed(totalRaised);
     }
 
-    function openPosition(bytes calldata info) external override openOnce whenNotPaused whenLinkedSigner {
+    function openPosition(bytes calldata info) external override openOnce whenNotPaused {
         if(msg.sender != manager) revert NoAccess(manager, msg.sender);
 
         if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
@@ -191,55 +177,27 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
             usdc.transfer(protocolInfo.treasury(), _protocolFee);
         }
 
-        if(operator == address(0)) revert ZeroAddress();
-
-        ISupportedDex supportedDex = ISupportedDex(factory);
+        // Swap here
+        /* ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
-
         (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
         usdc.approve(dex, totalRaised);
-
         (bool success, ) = dex.call(instruction);
-        if(!success) revert ExecutionCallFailure();
+        if(!success) revert ExecutionCallFailure(); */
 
         emit PositionOpened(info);
-    }
-
-    function setLinkSigner() public whenNotPaused {
-        if (isLinkSigner) revert HasLinkSigner();
-        require(msg.sender == operator || msg.sender == IHasOwnable(factory).owner()
-        || msg.sender == IHasAdministrable(factory).admin(), "no access");
-
-        // Ensure farm is end fundraising
-        if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
-
-        ISupportedDex supportedDex = ISupportedDex(factory);
-        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
-
-        (address dex,  bytes memory instruction) = dexHandler.linkSignerInstruction(address(this), operator);
-
-        IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-        usdc.approve(dex, holdDexFee);
-
-        (bool success, ) = dex.call(instruction);
-        if(!success) revert ExecutionCallFailure();
-        isLinkSigner = true;
-
-        emit LinkedSigner(address(this), operator);
     }
 
     /// @notice allows the manager/operator to mark farm as closed
     /// @dev can be called only if theres a position already open
     /// @dev `status` will be `PositionClosed`
-    function closePosition(bytes calldata _signature) external override whenNotPaused whenLinkedSigner {
+    function closePosition() external override whenNotPaused {
         if (msg.sender != manager && msg.sender != IHasAdministrable(factory).admin()) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.OPENED) revert NoOpenPositions();
 
-        // Verifying the correctness of the signature. Ensure position has closed on dex.
-        if(getClosePositionDigest(address(this))
-            .toEthSignedMessageHash().recover(_signature) != operator) revert InvalidSignature(operator);
+        // Swap here
 
-        ISupportedDex supportedDex = ISupportedDex(factory);
+        /* ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
         uint256 balance = dexHandler.getBalance(address(this), USDC);
@@ -251,8 +209,10 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         usdc.approve(dex, holdDexFee);
 
         (bool success, ) = dex.call(instruction);
-        if(!success) revert ExecutionCallFailure();
+        if(!success) revert ExecutionCallFailure(); */
 
+        // Update balance
+        uint256 balance = 1;
         if(balance > totalRaised) {
             uint256 profits = balance - totalRaised;
 
@@ -315,18 +275,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         emit Claimed(msg.sender, amount);
     }
 
-    /// @notice Set the `operator` of an farm in case of an emergency
-    /// @param _newOperator new `operator` of the farm
-    function setOperator(address _newOperator) external onlyOwner {
-        if(_newOperator == address(0)) revert ZeroAddress();
-        if (_newOperator == operator) {
-            return;
-        }
-        operator = _newOperator;
-        isLinkSigner = false;
-        emit OperatorUpdated(msg.sender, operator);
-    }
-
     /*//////////////////////////////////////////////////////////////
                             ADMIN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -366,20 +314,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
     /*//////////////////////////////////////////////////////////////
                               VIEW
     //////////////////////////////////////////////////////////////*/
-
-    function getClosePositionDigest(
-        address _farm
-    ) public view returns (bytes32) {
-        return
-            _hashTypedDataV4(
-                keccak256(
-                    abi.encode(
-                        CLOSE_POSITION_HASH,
-                        _farm
-                    )
-                )
-            );
-    }
 
     function getInfo()
         external

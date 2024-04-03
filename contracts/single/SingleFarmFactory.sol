@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/ECDSAUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
@@ -24,7 +22,6 @@ import "../utils/ETHFee.sol";
 import "../utils/SupportedDex.sol";
 import "../utils/ProtocolInfo.sol";
 import "../utils/Constants.sol";
-import "../utils/OperatorManager.sol";
 import "../utils/BlastYield.sol";
 
 /// @title SingleFarm Factory
@@ -39,18 +36,14 @@ contract SingleFarmFactory is
     IHasSeedable,
     OwnableUpgradeable,
     PausableUpgradeable,
-    EIP712Upgradeable,
     WhitelistedTokens,
     IHasAdministrable,
     Administrable,
     ProtocolInfo,
     ETHFee,
     SupportedDex,
-    OperatorManager,
     BlastYield
 {
-    using ECDSAUpgradeable for bytes32;
-
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
@@ -78,7 +71,6 @@ contract SingleFarmFactory is
     address[] public deployedFarms;
     mapping(address => bool) public isFarm;
 
-    uint public currentOperatorIndex;
     address public deFarmSeeds;
 
     /*//////////////////////////////////////////////////////////////
@@ -105,13 +97,11 @@ contract SingleFarmFactory is
     ) public initializer {
         __Ownable_init();
         __Pausable_init();
-        __EIP712_init("SingleFarmFactory", "1");
 
         __Administrable_init();
         __ProtocolInfo_init(1e18);
         __ETHFee_init();
         __SupportedDex_init(_dexHandler);
-        __OperatorManager_init();
 
         if (_singleFarmImplementation == address(0)) revert ZeroAddress();
         if (_usdc == address(0)) revert ZeroAddress();
@@ -127,7 +117,6 @@ contract SingleFarmFactory is
         maxManagerFee = 70e18;
         maxFundraisingPeriod = 1 weeks;
 
-        currentOperatorIndex = 0;
         deFarmSeeds = _deFarmSeeds;
 
         __BlastYield_init(owner());
@@ -175,13 +164,6 @@ contract SingleFarmFactory is
             if(IDeFarmSeeds(deFarmSeeds).balanceOf(msg.sender, msg.sender) == 0) revert ZeroSeedBalance(msg.sender);
         }
 
-        require(numberOperators() > 0, "No operators available");
-        address selectedOperator = getOperator(currentOperatorIndex % numberOperators());
-
-        // Move to the next address in a round-robin fashion
-        // TODO: don't care about safe math
-        currentOperatorIndex = (currentOperatorIndex + 1) % numberOperators();
-
         if (msg.value < ethFee()) revert BelowMin(ethFee(), msg.value);
         if (_managerFee > maxManagerFee) revert AboveMax(maxManagerFee, _managerFee);
         if (_sf.fundraisingPeriod < 15 minutes) revert BelowMin(15 minutes, _sf.fundraisingPeriod);
@@ -196,12 +178,11 @@ contract SingleFarmFactory is
         ERC1967Proxy singleFarm = new ERC1967Proxy(
             ClonesUpgradeable.clone(singleFarmImplementation),
             abi.encodeWithSignature(
-                "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,address,bool)",
+                "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,bool)",
                 _sf,
                 msg.sender,
                 _managerFee,
                 USDC,
-                selectedOperator,
                 _isPrivate
             )
         );
@@ -222,7 +203,6 @@ contract SingleFarmFactory is
             msg.sender,
             _managerFee,
             FEE_DENOMINATOR,
-            selectedOperator,
             block.timestamp,
             _isPrivate
         );
@@ -353,16 +333,6 @@ contract SingleFarmFactory is
     //////////////////////////////////////////////////////////////*/
     function getMaxManagerFee() public view returns (uint256, uint256) {
         return (maxManagerFee, FEE_DENOMINATOR);
-    }
-
-    function getCreateFarmDigest(
-        address _operator,
-        address _manager
-    ) public view returns (bytes32) {
-        return
-            _hashTypedDataV4(
-                keccak256(abi.encode(CREATE_FARM_HASH, _operator, _manager))
-            );
     }
 
     /*//////////////////////////////////////////////////////////////
