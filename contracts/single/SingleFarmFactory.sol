@@ -86,7 +86,7 @@ contract SingleFarmFactory is
     /// @param _maxLeverage max leverage which can be used by the manager when creating an farm
     /// @param _usdc USDC contract address
     function initialize(
-        address _dexHandler,
+        address _thrusterFactory,
         address _singleFarmImplementation,
         uint256 _capacityPerFarm,
         uint256 _minInvestmentAmount,
@@ -101,7 +101,7 @@ contract SingleFarmFactory is
         __Administrable_init();
         __ProtocolInfo_init(1e18);
         __ETHFee_init();
-        __SupportedDex_init(_dexHandler);
+        __SupportedDex_init(_thrusterFactory);
 
         if (_singleFarmImplementation == address(0)) revert ZeroAddress();
         if (_usdc == address(0)) revert ZeroAddress();
@@ -175,15 +175,19 @@ contract SingleFarmFactory is
 
         if (!isTokenAllowed(_sf.baseToken)) revert NoBaseToken(_sf.baseToken);
 
+        address pair = getPair(USDC, _sf.baseToken);
+        if (pair == address(0)) revert ZeroAddress();
+
         ERC1967Proxy singleFarm = new ERC1967Proxy(
             ClonesUpgradeable.clone(singleFarmImplementation),
             abi.encodeWithSignature(
-                "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,bool)",
+                "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,address,bool)",
                 _sf,
                 msg.sender,
                 _managerFee,
                 USDC,
-                _isPrivate
+                _isPrivate,
+                pair
             )
         );
 

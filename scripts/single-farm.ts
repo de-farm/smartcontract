@@ -1,5 +1,5 @@
 import { ethers, upgrades, run, network } from "hardhat";
-import { getSingleFarmConfig } from "../../config/singleFarm.config";
+import { getSingleFarmConfig } from "../config/singleFarm.config";
 
 async function main() {
   const singleFarmConfig = getSingleFarmConfig(network.name);
@@ -23,7 +23,7 @@ async function main() {
   const singleFarmFactory = await ethers.getContractFactory("SingleFarmFactory");
   const factory = await upgrades.deployProxy(
     singleFarmFactory, [
-      singleFarmConfig.dexHandler,
+      singleFarmConfig.thrusterFactory,
       await singleFarm.getAddress(),
       singleFarmConfig.capacityPerFarm,
       singleFarmConfig.minInvestmentAmount,

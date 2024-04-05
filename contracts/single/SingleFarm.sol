@@ -21,6 +21,7 @@ import "../interfaces/IDexHandler.sol";
 import "../interfaces/IHasSeedable.sol";
 import "../interfaces/IDeFarmSeeds.sol";
 import "../utils/BlastYield.sol";
+import "../interfaces/thruster/IThrusterPair.sol";
 
 /// @title SingleFarm
 /// @notice Contract for the investors to deposit and for managers to open and close positions
@@ -48,13 +49,15 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
     uint256 public maxFeePay;
     uint256 public holdDexFee;
     bool public isPrivate;
+    address public pair;
 
     function initialize(
         ISingleFarmFactory.Sf calldata _sf,
         address _manager,
         uint256 _managerFee,
         address _usdc,
-        bool _isPrivate
+        bool _isPrivate,
+        address _pair
     ) public initializer {
         sf = _sf;
         factory = msg.sender;
@@ -69,6 +72,7 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
         holdDexFee = 0;
         managerFeeReceived = 0;
         isPrivate = _isPrivate;
+        pair = _pair;
 
         __BlastYield_init(IHasOwnable(factory).owner());
     }
@@ -177,6 +181,8 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
             usdc.transfer(protocolInfo.treasury(), _protocolFee);
         }
 
+        IThrusterPair thrusterPair = IThrusterPair(pair);
+        // thrusterPair.swap()
         // Swap here
         /* ISupportedDex supportedDex = ISupportedDex(factory);
         IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());

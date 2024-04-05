@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "../interfaces/ISupportedDex.sol";
 import "./Errors.sol";
+import "../interfaces/thruster/IThrusterFactory.sol";
 
 abstract contract SupportedDex is OwnableUpgradeable, ISupportedDex {
     event DexHandlerSet(address dexHandler);
@@ -29,5 +30,12 @@ abstract contract SupportedDex is OwnableUpgradeable, ISupportedDex {
         dexHandler = _dexHandler;
 
         emit DexHandlerSet(dexHandler);
+    }
+
+    function getPair(address token0, address token1) public view returns(address) {
+        IThrusterFactory factory = IThrusterFactory(dexHandler);
+        address pair = factory.getPair(token0, token1);
+
+        return pair;
     }
 }

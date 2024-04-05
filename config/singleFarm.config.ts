@@ -5,33 +5,21 @@ export interface ChainConfig {
     usdToken: string;
     usdDecimals: number;
     baseTokens: string[];
-    dexHandler: string;
     deFarmSeeds: string;
+    thrusterFactory: string;
 }
 
 export const getChainConfig = (networkName: string): ChainConfig => {
     switch(networkName) {
-        case "arbitrumSepolia":
-            return {
-                usdToken: '0xbC47901f4d2C5fc871ae0037Ea05c3F614690781',
-                usdDecimals: 6,
-                baseTokens: [
-                    '0x94B3173E0a23C28b2BA9a52464AC24c2B032791c',
-                    '0xA7Fcb606611358afa388b6bd23b3B2F2c6abEd82',
-                ],
-                dexHandler: '0x6E5Ead7745407a7E16AD27C43c3D5D5f308cE96e',
-                deFarmSeeds: ''
-            }
-            break
         case "blastSepolia":
             return {
-                usdToken: '0xbC47901f4d2C5fc871ae0037Ea05c3F614690781',
-                usdDecimals: 6,
+                usdToken: '0x4200000000000000000000000000000000000022',
+                usdDecimals: 18,
                 baseTokens: [
-                    '0xA7Fcb606611358afa388b6bd23b3B2F2c6abEd82' // WETH
+                    '0x4200000000000000000000000000000000000023' // WETH
                 ],
-                dexHandler: '0xD9ff83b4AE13EA581d4e4c078Fa7b0d7c3fAdB1d',
-                deFarmSeeds: '0x1c50b7145d5D542c73a5b0ecC7b751aCDf9BE929'
+                deFarmSeeds: '0x1c50b7145d5D542c73a5b0ecC7b751aCDf9BE929',
+                thrusterFactory: '0x1f73ba8fdA82fc8e0aC02Fdda503206dDE98a649'
             }
         case "blast":
             return {
@@ -69,28 +57,18 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     '0x0000000000000000000000000000000000000053', //GALA
                     '0x0000000000000000000000000000000000000051', //TRX
                 ],
-                dexHandler: '0x91b275A7211A276755b7aCB9A0fDA297EAA5F0fe',
-                deFarmSeeds: '0xA549Bdccc03800Ff382D3977Fc7dE546c20d16a8'
-            }
-        case "arbitrumOne":
-            return {
-                usdToken: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-                usdDecimals: 6,
-                baseTokens: [
-                    '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
-                    '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
-                ],
-                dexHandler: '0xe7730965068C33e4CbAaAd73ddd3270A0A5AF24a',
-                deFarmSeeds: '',
+                deFarmSeeds: '0xA549Bdccc03800Ff382D3977Fc7dE546c20d16a8',
+                thrusterFactory: '0xb4A7D971D0ADea1c73198C97d7ab3f9CE4aaFA13'
             }
         default:
             return {
-                usdToken: '',
+                usdToken: '0x4300000000000000000000000000000000000003',
                 usdDecimals: 18,
                 baseTokens: [
+                    '0x4200000000000000000000000000000000000023' // WETH
                 ],
-                dexHandler: '',
-                deFarmSeeds: ''
+                deFarmSeeds: '0xb4A7D971D0ADea1c73198C97d7ab3f9CE4aaFA13',
+                thrusterFactory: '0xb4A7D971D0ADea1c73198C97d7ab3f9CE4aaFA13'
             }
     }
 }
@@ -103,8 +81,8 @@ export interface SingeFarmConfig {
     usdToken: string;
     baseTokens: string[];
     admin: string | undefined;
-    dexHandler: string;
     deFarmSeeds: string;
+    thrusterFactory: string;
 }
 
 export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
@@ -118,7 +96,7 @@ export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
         admin: '0x6dC8592BfA5002DC1E043516B582F282dD568bdA',
         usdToken: chainConfig.usdToken,
         baseTokens: chainConfig.baseTokens,
-        dexHandler: chainConfig.dexHandler,
-        deFarmSeeds: chainConfig.deFarmSeeds
+        deFarmSeeds: chainConfig.deFarmSeeds,
+        thrusterFactory: chainConfig.thrusterFactory
     }
 }
