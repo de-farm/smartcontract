@@ -17,14 +17,6 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8545",
       timeout: 600000,
     },
-    arbitrumSepolia : {
-      url: `https://sepolia-rollup.arbitrum.io/rpc`,
-      chainId: 421614,
-      accounts: process.env.OWNER_PRIVATE_KEY
-        ?[
-          process.env.OWNER_PRIVATE_KEY,
-        ]:[],
-    },
     blastSepolia : {
       url: 'https://sepolia.blast.io',
       chainId: 168587773,
@@ -40,22 +32,12 @@ const config: HardhatUserConfig = {
         ?[
           process.env.OWNER_PRIVATE_KEY,
         ]:[],
-    },
-    arbitrumOne : {
-      url: `https://arb1.arbitrum.io/rpc`,
-      chainId: 42161,
-      accounts: process.env.OWNER_PRIVATE_KEY
-        ?[
-          process.env.OWNER_PRIVATE_KEY,
-        ]:[],
     }
   },
   etherscan: {
     apiKey: {
-      arbitrumSepolia : process.env.ARBISCAN_API_KEY || "Q64QDZTGG8Q5R97T6E2K2ZD2638NDSPFKM",
       blastSepolia : process.env.BLASTSCAN_API_KEY || "blast_sepolia",
       blast : process.env.BLASTSCAN_API_KEY || "",
-      arbitrumOne: process.env.ARBISCAN_API_KEY || "B2VTSN8QBY1DDINSZHNRSH9CJZDGC37VQ2",
     },
     customChains: [
       {
@@ -114,13 +96,6 @@ const config: HardhatUserConfig = {
     only: [
       "SingleFarmFactory",
       "SingleFarm",
-      "SeasonalFarmFactory",
-      "SeasonalFarm",
-      "FarmManagement",
-      "AssetHandler",
-      "AssetSimulator",
-      "VertexHandler",
-      "DexSimulator",
     ],
     spacing: 2,
   },

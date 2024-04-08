@@ -17,11 +17,10 @@ import "../interfaces/IHasOwnable.sol";
 import "../interfaces/IHasPausable.sol";
 import "../interfaces/IHasProtocolInfo.sol";
 import "../interfaces/ISupportedDex.sol";
-import "../interfaces/IDexHandler.sol";
 import "../interfaces/IHasSeedable.sol";
 import "../interfaces/IDeFarmSeeds.sol";
 import "../utils/BlastYield.sol";
-import "../interfaces/thruster/IThrusterPair.sol";
+import "../interfaces/thruster/IThrusterRouter02.sol";
 
 /// @title SingleFarm
 /// @notice Contract for the investors to deposit and for managers to open and close positions
@@ -47,17 +46,14 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
     uint256 private managerFeeNumerator;
     bool fundraisingClosed;
     uint256 public maxFeePay;
-    uint256 public holdDexFee;
     bool public isPrivate;
-    address public pair;
 
     function initialize(
         ISingleFarmFactory.Sf calldata _sf,
         address _manager,
         uint256 _managerFee,
         address _usdc,
-        bool _isPrivate,
-        address _pair
+        bool _isPrivate
     ) public initializer {
         sf = _sf;
         factory = msg.sender;
@@ -69,10 +65,8 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
         maxFeePay = 10*(10**IERC20MetadataUpgradeable(_usdc).decimals());
         status = SfStatus.NOT_OPENED;
         fundraisingClosed = false;
-        holdDexFee = 0;
         managerFeeReceived = 0;
         isPrivate = _isPrivate;
-        pair = _pair;
 
         __BlastYield_init(IHasOwnable(factory).owner());
     }
@@ -141,27 +135,13 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
         if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
         if (totalRaised < 1) revert ZeroAmount();
 
-        ISupportedDex supportedDex = ISupportedDex(factory);
-        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
-
-        (address feeToken, uint256 feeAmount) = dexHandler.getPaymentFee();
-        if (feeToken != USDC) revert InvalidToken(feeToken);
-        if (feeAmount > maxFeePay) revert FeeTooHigh(feeAmount);
-
-        // holdDexFee holds fee for setLinkSigner and withdraw
-        holdDexFee = feeAmount * 2;
-
-        if (totalRaised <= holdDexFee) revert NotEnoughFund();
-
-        totalRaised -= holdDexFee;
-
         endTime = block.timestamp;
         fundraisingClosed = true;
 
         emit FundraisingClosed(totalRaised);
     }
 
-    function openPosition(bytes calldata info) external override openOnce whenNotPaused {
+    function openPosition(uint256 amountBaseTokenMin) external override openOnce whenNotPaused {
         if(msg.sender != manager) revert NoAccess(manager, msg.sender);
 
         if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
@@ -181,17 +161,26 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
             usdc.transfer(protocolInfo.treasury(), _protocolFee);
         }
 
-        IThrusterPair thrusterPair = IThrusterPair(pair);
-        // thrusterPair.swap()
         // Swap here
-        /* ISupportedDex supportedDex = ISupportedDex(factory);
-        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
-        (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
-        usdc.approve(dex, totalRaised);
-        (bool success, ) = dex.call(instruction);
-        if(!success) revert ExecutionCallFailure(); */
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        address router = supportedDex.dexRouter();
 
-        emit PositionOpened(info);
+        require(usdc.approve(router, totalRaised), 'approve failed.');
+        address[] memory path = new address[](2);
+        path[0] = USDC;
+        path[1] = sf.baseToken;
+        IThrusterRouter02 thrusterRouter = IThrusterRouter02(router);
+        uint256[] memory amounts = thrusterRouter.swapExactTokensForTokens(
+            totalRaised,
+            amountBaseTokenMin,
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        if(amounts[1] < 1) revert ZeroAmount();
+
+        emit PositionOpened(amounts[0], amounts[1]);
     }
 
     /// @notice allows the manager/operator to mark farm as closed
@@ -202,23 +191,33 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
         if (status != SfStatus.OPENED) revert NoOpenPositions();
 
         // Swap here
-
-        /* ISupportedDex supportedDex = ISupportedDex(factory);
-        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
-
-        uint256 balance = dexHandler.getBalance(address(this), USDC);
-        if (balance < 1) revert ZeroTokenBalance();
-
-        (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
-
         IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
-        usdc.approve(dex, holdDexFee);
+        IERC20Upgradeable baseToken = IERC20Upgradeable(sf.baseToken);
+        uint256 baseTokenBalance = baseToken.balanceOf(address(this));
 
-        (bool success, ) = dex.call(instruction);
-        if(!success) revert ExecutionCallFailure(); */
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        address router = supportedDex.dexRouter();
+
+        require(baseToken.approve(router, baseTokenBalance), 'approve failed.');
+        address[] memory path = new address[](2);
+        path[0] = sf.baseToken;
+        path[1] = USDC;
+        IThrusterRouter02 thrusterRouter = IThrusterRouter02(router);
+        thrusterRouter.swapExactTokensForTokens(
+            baseTokenBalance,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        baseTokenBalance = baseToken.balanceOf(address(this));
+        if(baseTokenBalance > 0) revert CantClosePosition();
 
         // Update balance
-        uint256 balance = 1;
+        uint256 balance = usdc.balanceOf(address(this));
+        if (balance < 1) revert ZeroTokenBalance();
+
         if(balance > totalRaised) {
             uint256 profits = balance - totalRaised;
 
@@ -290,10 +289,9 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
     /// @dev can only be called by the `admin`
     function liquidate() external override onlyAdmin whenNotPaused {
         if (status != SfStatus.OPENED) revert NotOpened();
-        ISupportedDex supportedDex = ISupportedDex(factory);
-        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
-        uint256 balance = dexHandler.getBalance(address(this), USDC);
+        uint256 balance = getBalance();
+
         if (balance >= 1) revert NotAbleLiquidate(balance);
 
         status = SfStatus.LIQUIDATED;
@@ -374,5 +372,25 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
 
     function getClaimed(address _investor) external view override returns (bool) {
         return claimed[_investor];
+    }
+
+    function getBalance() public view returns(uint256) {
+        address farm = address(this);
+
+        IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
+        uint256 usdcBalance = usdc.balanceOf(farm);
+
+        IERC20Upgradeable baseToken = IERC20Upgradeable(sf.baseToken);
+        uint256 baseTokenBalance = baseToken.balanceOf(farm);
+
+        ISupportedDex supportedDex = ISupportedDex(factory);
+        IThrusterRouter02 thrusterRouter = IThrusterRouter02(supportedDex.dexRouter());
+        address[] memory path = new address[](2);
+        path[0] = sf.baseToken;
+        path[1] = USDC;
+
+        uint256[] memory amounts = thrusterRouter.getAmountsOut(baseTokenBalance, path);
+
+        return usdcBalance + amounts[1];
     }
 }

@@ -16,5 +16,4 @@ error ExecutionCallFailure();
 error HasLinkSigner();
 error HasClosedFundraising();
 error InvalidToken(address token);
-error FeeTooHigh(uint256 fee);
 error NotEnoughFund();

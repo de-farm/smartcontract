@@ -5,37 +5,27 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "../interfaces/ISupportedDex.sol";
 import "./Errors.sol";
-import "../interfaces/thruster/IThrusterFactory.sol";
 
 abstract contract SupportedDex is OwnableUpgradeable, ISupportedDex {
-    event DexHandlerSet(address dexHandler);
+    event DexRouterSet(address dexRouter);
 
-    address public dexHandler;
+    address public dexRouter;
 
-    function __SupportedDex_init(address _dexHandler) internal onlyInitializing {
-        _setDexHandler(_dexHandler);
+    function __SupportedDex_init(
+        address _dexRouter
+    ) internal onlyInitializing {
+        _setDexRouter(_dexRouter);
     }
 
-    /// @notice Set the dex handler address
-    /// @param _dexHandler The address of the dex handler
-    function setDexHandler(address _dexHandler) external onlyOwner {
-        _setDexHandler(_dexHandler);
+    function setDexRouter(address _dexRouter) external onlyOwner {
+        _setDexRouter(_dexRouter);
     }
 
-    /// @notice Set the dex handler address internal call
-    /// @param _dexHandler The address of the dex handler
-    function _setDexHandler(address _dexHandler) internal {
-        require(_dexHandler != address(0), "Invalid DEX handler address");
+    function _setDexRouter(address _dexRouter) internal {
+        require(_dexRouter != address(0), "Invalid DEX handler address");
 
-        dexHandler = _dexHandler;
+        dexRouter = _dexRouter;
 
-        emit DexHandlerSet(dexHandler);
-    }
-
-    function getPair(address token0, address token1) public view returns(address) {
-        IThrusterFactory factory = IThrusterFactory(dexHandler);
-        address pair = factory.getPair(token0, token1);
-
-        return pair;
+        emit DexRouterSet(dexRouter);
     }
 }

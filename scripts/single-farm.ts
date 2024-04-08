@@ -23,7 +23,7 @@ async function main() {
   const singleFarmFactory = await ethers.getContractFactory("SingleFarmFactory");
   const factory = await upgrades.deployProxy(
     singleFarmFactory, [
-      singleFarmConfig.thrusterFactory,
+      singleFarmConfig.thrusterRouter,
       await singleFarm.getAddress(),
       singleFarmConfig.capacityPerFarm,
       singleFarmConfig.minInvestmentAmount,

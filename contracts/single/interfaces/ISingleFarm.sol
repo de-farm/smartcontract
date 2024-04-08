@@ -20,7 +20,7 @@ interface ISingleFarm {
 
     event Deposited(address indexed investor, uint256 amount);
     event FundraisingClosed(uint256 amount);
-    event PositionOpened(bytes info);
+    event PositionOpened(uint256 usdcAmount, uint256 baseTokenAmount);
     event PositionClosed(uint256 balance);
     event Cancelled();
     event Liquidated();
@@ -35,7 +35,7 @@ interface ISingleFarm {
 
     function deposit(uint256 amount) external;
     function closeFundraising() external;
-    function openPosition(bytes calldata info) external;
+    function openPosition(uint256 amountOutMin) external;
     function closePosition() external;
     function cancelByAdmin() external;
     function cancelByManager() external;

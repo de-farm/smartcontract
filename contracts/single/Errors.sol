@@ -9,4 +9,5 @@ error NotOpened();
 error NotFinalised();
 error OpenPosition();
 error NoOpenPositions();
+error CantClosePosition();
 error NotAbleLiquidate(uint256 fund);

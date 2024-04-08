@@ -6,7 +6,7 @@ export interface ChainConfig {
     usdDecimals: number;
     baseTokens: string[];
     deFarmSeeds: string;
-    thrusterFactory: string;
+    thrusterRouter: string;
 }
 
 export const getChainConfig = (networkName: string): ChainConfig => {
@@ -19,7 +19,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     '0x4200000000000000000000000000000000000023' // WETH
                 ],
                 deFarmSeeds: '0x1c50b7145d5D542c73a5b0ecC7b751aCDf9BE929',
-                thrusterFactory: '0x1f73ba8fdA82fc8e0aC02Fdda503206dDE98a649'
+                thrusterRouter: '0xEf52b983b902357e9aD4EF4C383b3eF28f5E74d5'
             }
         case "blast":
             return {
@@ -58,7 +58,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     '0x0000000000000000000000000000000000000051', //TRX
                 ],
                 deFarmSeeds: '0xA549Bdccc03800Ff382D3977Fc7dE546c20d16a8',
-                thrusterFactory: '0xb4A7D971D0ADea1c73198C97d7ab3f9CE4aaFA13'
+                thrusterRouter: '0x98994a9A7a2570367554589189dC9772241650f6'
             }
         default:
             return {
@@ -68,7 +68,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                     '0x4200000000000000000000000000000000000023' // WETH
                 ],
                 deFarmSeeds: '0xb4A7D971D0ADea1c73198C97d7ab3f9CE4aaFA13',
-                thrusterFactory: '0xb4A7D971D0ADea1c73198C97d7ab3f9CE4aaFA13'
+                thrusterRouter: '0x98994a9A7a2570367554589189dC9772241650f6'
             }
     }
 }
@@ -82,7 +82,7 @@ export interface SingeFarmConfig {
     baseTokens: string[];
     admin: string | undefined;
     deFarmSeeds: string;
-    thrusterFactory: string;
+    thrusterRouter: string;
 }
 
 export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
@@ -97,6 +97,6 @@ export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
         usdToken: chainConfig.usdToken,
         baseTokens: chainConfig.baseTokens,
         deFarmSeeds: chainConfig.deFarmSeeds,
-        thrusterFactory: chainConfig.thrusterFactory
+        thrusterRouter: chainConfig.thrusterRouter
     }
 }
