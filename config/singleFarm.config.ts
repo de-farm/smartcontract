@@ -111,7 +111,7 @@ export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
     const chainConfig = getChainConfig(networkName)
 
     return {
-        capacityPerFarm: parseUnits("10000", chainConfig.usdDecimals),
+        capacityPerFarm: parseUnits("5000", chainConfig.usdDecimals),
         minInvestmentAmount: parseUnits("10", chainConfig.usdDecimals),
         maxInvestmentAmount: parseUnits("5000", chainConfig.usdDecimals),
         maxLeverage: parseUnits("20", 6),
