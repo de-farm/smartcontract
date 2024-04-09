@@ -15,7 +15,7 @@ enum Status {
 }
 
 const deFarmSeedsAddress = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0'
-const USDC_DECIMALS = 6
+const USDC_DECIMALS = 18
 const BTC_DECIMALS = 18
 const ETH_DECIMALS = 18
 const DEFAULT_MANAGER_FEE = parseUnits('70', 18)
@@ -32,6 +32,7 @@ describe("Single Farm", function () {
   let manager: HardhatEthersSigner
   let user: HardhatEthersSigner
   let operator: HardhatEthersSigner
+  let anyAddress: HardhatEthersSigner
 
   let usd: any
   let btcToken: any
@@ -41,7 +42,7 @@ describe("Single Farm", function () {
   let dexSimulator: DexSimulator
 
   before(async function () {
-    [owner, admin, maker, treasury, manager, user, operator] = await ethers.getSigners();
+    [owner, admin, maker, treasury, manager, user, operator, anyAddress] = await ethers.getSigners();
 
     /// MOCK TOKENS
     const MockERC20 = await ethers.getContractFactory("MockERC20")
@@ -126,6 +127,54 @@ describe("Single Farm", function () {
     expect(await singleFarmFactory.deFarmSeeds()).to.equal(deFarmSeedsAddress)
   });
 
+  it("Update operators", async function () {
+    expect(await singleFarmFactory.getOperators()).to.not.contains(anyAddress.address)
+
+    await singleFarmFactory.addOperator(anyAddress.address)
+    expect(await singleFarmFactory.getOperators()).to.contains(anyAddress.address)
+
+    await singleFarmFactory.removeOperator(anyAddress.address)
+    expect(await singleFarmFactory.getOperators()).to.not.contains(anyAddress.address)
+  })
+
+  it("Update tokens", async function () {
+    await singleFarmFactory.removeTokens([await btcToken.getAddress()])
+    expect(await singleFarmFactory.getTokens()).to.not.contains(await btcToken.getAddress())
+
+    await singleFarmFactory.addTokens([await btcToken.getAddress()])
+    expect(await singleFarmFactory.getTokens()).to.contains(await btcToken.getAddress())
+  })
+
+  it("Update dex handler", async function () {
+    const currentDexHandler = await singleFarmFactory.dexHandler()
+
+    await singleFarmFactory.setDexHandler(anyAddress.address)
+    expect(await singleFarmFactory.dexHandler()).to.equal(anyAddress.address)
+
+    await singleFarmFactory.setDexHandler(currentDexHandler)
+    expect(await singleFarmFactory.dexHandler()).to.equal(currentDexHandler)
+  })
+
+  it("Admin: set SingleFarm Implementation", async function () {
+    const current = await singleFarmFactory.singleFarmImplementation()
+
+    await singleFarmFactory.connect(admin).setSfImplementation(anyAddress.address)
+    expect(await singleFarmFactory.singleFarmImplementation()).to.equal(anyAddress.address)
+
+    await singleFarmFactory.connect(admin).setSfImplementation(current)
+    expect(await singleFarmFactory.singleFarmImplementation()).to.equal(current)
+  })
+
+  it("Owner: set DeFarmSeeds", async function () {
+    const current = await singleFarmFactory.deFarmSeeds()
+
+    await singleFarmFactory.connect(owner).setDeFarmSeeds(anyAddress.address)
+    expect(await singleFarmFactory.deFarmSeeds()).to.equal(anyAddress.address)
+
+    await singleFarmFactory.connect(owner).setDeFarmSeeds(current)
+    expect(await singleFarmFactory.deFarmSeeds()).to.equal(current)
+  })
+
   describe("Should create a farm", function () {
     // create a vault in before function
     const farmInfo = {
@@ -201,6 +250,7 @@ describe("Single Farm", function () {
     it("Should has a valid farm", async function () {
       expect(await singleFarmFactory.isFarm(await singleFarm.getAddress())).to.be.true;
 
+      expect(await singleFarm.maxFeePay()).to.equals(parseUnits("10", await usd.decimals()));
       expect(await singleFarm.status()).to.equals(Status.NOT_OPENED);
       expect(await singleFarm.factory()).to.equals(await singleFarmFactory.getAddress());
       expect(await singleFarm.manager()).to.equals(manager.address);
