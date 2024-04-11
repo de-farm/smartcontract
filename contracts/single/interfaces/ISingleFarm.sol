@@ -20,7 +20,7 @@ interface ISingleFarm {
 
     event Deposited(address indexed investor, uint256 amount);
     event FundraisingClosed(uint256 amount);
-    event PositionOpened(uint256 usdcAmount, uint256 baseTokenAmount);
+    event PositionOpened(uint256 usdcAmount, uint256 baseTokenAmount, uint256 protocolFee);
     event PositionClosed(uint256 balance);
     event Cancelled();
     event Liquidated();

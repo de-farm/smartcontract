@@ -180,7 +180,7 @@ contract SingleFarm is ISingleFarm, Initializable, BlastYield {
 
         if(amounts[1] < 1) revert ZeroAmount();
 
-        emit PositionOpened(amounts[0], amounts[1]);
+        emit PositionOpened(amounts[0], amounts[1], _protocolFee);
     }
 
     /// @notice allows the manager/operator to mark farm as closed
