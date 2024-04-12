@@ -61,10 +61,6 @@ contract SingleFarmFactory is
     uint256 public maxInvestmentAmount;
     // percentage of fees from the profits of the farm to the manager (default - 15e18 (15%))
     uint256 private maxManagerFee;
-    // max leverage which can be used by the manager when creating a farm
-    uint256 public maxLeverage;
-    // min leverage which can be used by the manager when creating a farm
-    uint256 public minLeverage;
     // max fundraising period which can be used by the manager to raise funds (defaults - 1 week)
     uint256 public maxFundraisingPeriod;
 
@@ -83,7 +79,6 @@ contract SingleFarmFactory is
     /// @param _capacityPerFarm max amount which can be fundraised by the manager per farm
     /// @param _minInvestmentAmount min investment amount per investor per farm
     /// @param _maxInvestmentAmount max investment amount per investor per farm
-    /// @param _maxLeverage max leverage which can be used by the manager when creating an farm
     /// @param _usdc USDC contract address
     function initialize(
         address _thrusterRouter,
@@ -91,7 +86,6 @@ contract SingleFarmFactory is
         uint256 _capacityPerFarm,
         uint256 _minInvestmentAmount,
         uint256 _maxInvestmentAmount,
-        uint256 _maxLeverage,
         address _usdc,
         address _deFarmSeeds
     ) public initializer {
@@ -111,8 +105,6 @@ contract SingleFarmFactory is
         minInvestmentAmount = _minInvestmentAmount;
         maxInvestmentAmount = _maxInvestmentAmount;
 
-        minLeverage = 1e6;
-        maxLeverage = _maxLeverage;
         USDC = _usdc;
         maxManagerFee = 70e18;
         maxFundraisingPeriod = 1 weeks;
@@ -126,7 +118,6 @@ contract SingleFarmFactory is
             _capacityPerFarm,
             _minInvestmentAmount,
             _maxInvestmentAmount,
-            _maxLeverage,
             ethFee(),
             maxManagerFee,
             FEE_DENOMINATOR,
@@ -170,15 +161,13 @@ contract SingleFarmFactory is
         if (_sf.fundraisingPeriod > maxFundraisingPeriod) {
             revert AboveMax(maxFundraisingPeriod, _sf.fundraisingPeriod);
         }
-        if (_sf.leverage < minLeverage) revert BelowMin(minLeverage, _sf.leverage);
-        if (_sf.leverage > maxLeverage) revert AboveMax(maxLeverage, _sf.leverage);
 
         if (!isTokenAllowed(_sf.baseToken)) revert NoBaseToken(_sf.baseToken);
 
         ERC1967Proxy singleFarm = new ERC1967Proxy(
             ClonesUpgradeable.clone(singleFarmImplementation),
             abi.encodeWithSignature(
-                "initialize((address,bool,uint256,uint256,uint256,uint256,uint256),address,uint256,address,bool)",
+                "initialize((address,bool,uint256,uint256,uint256,uint256),address,uint256,address,bool)",
                 _sf,
                 msg.sender,
                 _managerFee,
@@ -198,7 +187,6 @@ contract SingleFarmFactory is
             _sf.entryPrice,
             _sf.targetPrice,
             _sf.liquidationPrice,
-            _sf.leverage,
             _sf.tradeDirection,
             msg.sender,
             _managerFee,
@@ -242,21 +230,6 @@ contract SingleFarmFactory is
             revert BelowMin(minInvestmentAmount, _amount);
         maxInvestmentAmount = _amount;
         emit MaxInvestmentAmountChanged(_amount);
-    }
-
-    /// @notice set the max leverage a manager can use when creating an farm
-    /// @dev can only be called by the `admin`
-    /// @param _maxLeverage max leverage a manager can use when creating an farm
-    function setMaxLeverage(uint256 _maxLeverage) external override onlyAdmin {
-        if (_maxLeverage <= 1e6) revert AboveMax(1e6, _maxLeverage);
-        maxLeverage = _maxLeverage;
-        emit MaxLeverageChanged(_maxLeverage);
-    }
-
-    function setMinLeverage(uint256 _minLeverage) external override onlyAdmin {
-        if (_minLeverage < 1e6) revert BelowMin(1e6, _minLeverage);
-        minLeverage = _minLeverage;
-        emit MinLeverageChanged(_minLeverage);
     }
 
     /// @notice set the max fundraising period a manager can use when creating a farm

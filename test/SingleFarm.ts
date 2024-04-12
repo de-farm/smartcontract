@@ -4,7 +4,7 @@ import { expect } from "chai";
 import { ethers, network, upgrades } from "hardhat";
 import { Contract, ContractTransactionReceipt, getBytes, hashMessage, parseEther, parseUnits } from "ethers";
 import { getSingleFarmConfig } from "../config/singleFarm.config";
-import { SingleFarmFactory, SingleFarm, DexSimulator, IDeFarmSeedsActions } from "../types";
+import { SingleFarmFactory, SingleFarm, IDeFarmSeedsActions } from "../types";
 
 enum Status {
   NOT_OPENED,
@@ -14,7 +14,6 @@ enum Status {
   CANCELLED
 }
 
-const deFarmSeedsAddress = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0'
 const USDC_DECIMALS = 18
 const BTC_DECIMALS = 18
 const ETH_DECIMALS = 18
@@ -39,7 +38,6 @@ describe("Single Farm", function () {
   let ethToken: any
   let singleFarm: SingleFarm
   let singleFarmFactory: SingleFarmFactory
-  let dexSimulator: DexSimulator
 
   before(async function () {
     [owner, admin, maker, treasury, manager, user, operator, anyAddress] = await ethers.getSigners();
@@ -54,16 +52,6 @@ describe("Single Farm", function () {
     btcToken = await MockERC20.deploy('BTC', 'BTC', BTC_DECIMALS)
     ethToken = await MockERC20.deploy('ETH', 'ETH', ETH_DECIMALS)
 
-    // deploy Dex Simulator
-    const DexSimulator = await ethers.getContractFactory("DexSimulator");
-    dexSimulator = await upgrades.deployProxy(
-      DexSimulator, []
-    ) as unknown as DexSimulator;
-    await dexSimulator.setPaymentFee(
-      await usd.getAddress(),
-      parseUnits('1', USDC_DECIMALS)
-    )
-
     const SingleFarm = await ethers.getContractFactory("SingleFarm");
     const SingleFarmFactory = await ethers.getContractFactory("SingleFarmFactory");
 
@@ -72,14 +60,13 @@ describe("Single Farm", function () {
     singleFarmFactory = await upgrades.deployProxy(
       SingleFarmFactory,
       [
-        await dexSimulator.getAddress(),
+        singleTradeConfig.thrusterRouter,
         await singleFarmImplementation.getAddress(), // Template
         singleTradeConfig.capacityPerFarm, // _capacityPerFarm
         singleTradeConfig.minInvestmentAmount, // min
         singleTradeConfig.maxInvestmentAmount, // max
-        singleTradeConfig.maxLeverage,
         await usd.getAddress(),
-        deFarmSeedsAddress
+        singleTradeConfig.deFarmSeeds,
       ]
     ) as unknown as SingleFarmFactory;
 
@@ -92,8 +79,6 @@ describe("Single Farm", function () {
         await ethToken.getAddress()
       ]
     )
-
-    await singleFarmFactory.addOperator(operator)
   })
 
   it("Should set the right configs", async function () {
@@ -105,8 +90,6 @@ describe("Single Farm", function () {
     expect(await singleFarmFactory.capacityPerFarm()).to.equal(singleTradeConfig.capacityPerFarm);
     expect(await singleFarmFactory.minInvestmentAmount()).to.equal(singleTradeConfig.minInvestmentAmount);
     expect(await singleFarmFactory.maxInvestmentAmount()).to.equal(singleTradeConfig.maxInvestmentAmount);
-    expect(await singleFarmFactory.minLeverage()).to.equal(1e6);
-    expect(await singleFarmFactory.maxLeverage()).to.equal(singleTradeConfig.maxLeverage);
     expect(await singleFarmFactory.maxFundraisingPeriod()).to.equal(7*24*60*60);
 
     const [numeratorManagerFee, denominatorManagerFee] = await singleFarmFactory.getMaxManagerFee();
@@ -123,19 +106,8 @@ describe("Single Farm", function () {
     expect(baseTokens).to.contains(await btcToken.getAddress())
     expect(baseTokens).to.contains(await ethToken.getAddress())
 
-    expect(await singleFarmFactory.dexHandler()).to.equal(await dexSimulator.getAddress())
-    expect(await singleFarmFactory.deFarmSeeds()).to.equal(deFarmSeedsAddress)
+    expect(await singleFarmFactory.deFarmSeeds()).to.equal(singleTradeConfig.deFarmSeeds)
   });
-
-  it("Update operators", async function () {
-    expect(await singleFarmFactory.getOperators()).to.not.contains(anyAddress.address)
-
-    await singleFarmFactory.addOperator(anyAddress.address)
-    expect(await singleFarmFactory.getOperators()).to.contains(anyAddress.address)
-
-    await singleFarmFactory.removeOperator(anyAddress.address)
-    expect(await singleFarmFactory.getOperators()).to.not.contains(anyAddress.address)
-  })
 
   it("Update tokens", async function () {
     await singleFarmFactory.removeTokens([await btcToken.getAddress()])
@@ -143,16 +115,6 @@ describe("Single Farm", function () {
 
     await singleFarmFactory.addTokens([await btcToken.getAddress()])
     expect(await singleFarmFactory.getTokens()).to.contains(await btcToken.getAddress())
-  })
-
-  it("Update dex handler", async function () {
-    const currentDexHandler = await singleFarmFactory.dexHandler()
-
-    await singleFarmFactory.setDexHandler(anyAddress.address)
-    expect(await singleFarmFactory.dexHandler()).to.equal(anyAddress.address)
-
-    await singleFarmFactory.setDexHandler(currentDexHandler)
-    expect(await singleFarmFactory.dexHandler()).to.equal(currentDexHandler)
   })
 
   it("Admin: set SingleFarm Implementation", async function () {
@@ -184,20 +146,15 @@ describe("Single Farm", function () {
       entryPrice: 27,
       targetPrice: 30,
       liquidationPrice: 100,
-      leverage: 1e6,
       managerFee: parseUnits("10", 18),
       isPrivate: true
     }
 
     before(async function () {
-      const hash = await singleFarmFactory.getCreateFarmDigest(operator.address, manager.address);
-      const message = getBytes(hash)
-      const signature = await maker.signMessage(message);
-
       const ethFee = await singleFarmFactory.ethFee()
 
       // Enable seeds
-      const deFarmSeeds = await ethers.getContractAt("IDeFarmSeedsActions", deFarmSeedsAddress) as unknown as IDeFarmSeedsActions
+      const deFarmSeeds = await ethers.getContractAt("IDeFarmSeedsActions", singleTradeConfig.deFarmSeeds) as unknown as IDeFarmSeedsActions
       const balanceOfDeFarmSeeds = await deFarmSeeds.balanceOf(manager.address, manager.address)
       if(balanceOfDeFarmSeeds === 0n) {
         await deFarmSeeds.connect(manager).buySeeds(manager.address, 1, 36000)
@@ -210,8 +167,7 @@ describe("Single Farm", function () {
           fundraisingPeriod: farmInfo.fundraisingPeriod,
           entryPrice: farmInfo.entryPrice,
           targetPrice: farmInfo.targetPrice,
-          liquidationPrice: farmInfo.liquidationPrice,
-          leverage: farmInfo.leverage
+          liquidationPrice: farmInfo.liquidationPrice
         },
         farmInfo.managerFee,
         farmInfo.isPrivate,
@@ -226,7 +182,6 @@ describe("Single Farm", function () {
           farmInfo.entryPrice,
           farmInfo.targetPrice,
           farmInfo.liquidationPrice,
-          farmInfo.leverage,
           farmInfo.tradeDirection,
           manager.address,
           farmInfo.managerFee,
@@ -259,7 +214,6 @@ describe("Single Farm", function () {
       expect(numeratorManagerFee).to.equals(farmInfo.managerFee);
       expect(denominatorManagerFee).to.equals(FEE_DENOMINATOR);
 
-      expect(await singleFarm.operator()).to.equals(operator.address);
       expect(await singleFarm.endTime()).to.equals(farmInfo.farmCreatedAt + farmInfo.fundraisingPeriod);
       expect(await singleFarm.fundDeadline()).to.equals(72*60*60);
       expect(await singleFarm.USDC()).to.equals(await usd.getAddress());
@@ -272,7 +226,6 @@ describe("Single Farm", function () {
       expect(sf.entryPrice).to.equals(farmInfo.entryPrice);
       expect(sf.targetPrice).to.equals(farmInfo.targetPrice);
       expect(sf.liquidationPrice).to.equals(farmInfo.liquidationPrice);
-      expect(sf.leverage).to.equals(farmInfo.leverage);
     });
 
     describe("Should deposit to farm", function () {
@@ -314,7 +267,7 @@ describe("Single Farm", function () {
           const userAmountBefore = await singleFarm.userAmount(user.address)
 
           // Buy seeds
-          const deFarmSeeds = await ethers.getContractAt("IDeFarmSeedsActions", deFarmSeedsAddress) as unknown as SingleFarm
+          const deFarmSeeds = await ethers.getContractAt("IDeFarmSeedsActions", singleTradeConfig.deFarmSeeds) as unknown as SingleFarm
           const price = await deFarmSeeds.getBuyPriceAfterFee(manager.address, 1)
           await deFarmSeeds.connect(user).buySeeds(manager.address, 1, 36000, { value: price})
 

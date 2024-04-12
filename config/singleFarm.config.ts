@@ -67,7 +67,7 @@ export const getChainConfig = (networkName: string): ChainConfig => {
                 baseTokens: [
                     '0x4200000000000000000000000000000000000023' // WETH
                 ],
-                deFarmSeeds: '0xb4A7D971D0ADea1c73198C97d7ab3f9CE4aaFA13',
+                deFarmSeeds: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
                 thrusterRouter: '0x98994a9A7a2570367554589189dC9772241650f6'
             }
     }
@@ -77,10 +77,8 @@ export interface SingeFarmConfig {
     capacityPerFarm: bigint;
     minInvestmentAmount: bigint;
     maxInvestmentAmount: bigint;
-    maxLeverage: bigint;
     usdToken: string;
     baseTokens: string[];
-    admin: string | undefined;
     deFarmSeeds: string;
     thrusterRouter: string;
 }
@@ -89,11 +87,9 @@ export const getSingleFarmConfig = (networkName: string): SingeFarmConfig => {
     const chainConfig = getChainConfig(networkName)
 
     return {
-        capacityPerFarm: parseUnits("10000", chainConfig.usdDecimals),
+        capacityPerFarm: parseUnits("5000", chainConfig.usdDecimals),
         minInvestmentAmount: parseUnits("10", chainConfig.usdDecimals),
-        maxInvestmentAmount: parseUnits("10000", chainConfig.usdDecimals),
-        maxLeverage: parseUnits("20", 6),
-        admin: '0x6dC8592BfA5002DC1E043516B582F282dD568bdA',
+        maxInvestmentAmount: parseUnits("5000", chainConfig.usdDecimals),
         usdToken: chainConfig.usdToken,
         baseTokens: chainConfig.baseTokens,
         deFarmSeeds: chainConfig.deFarmSeeds,

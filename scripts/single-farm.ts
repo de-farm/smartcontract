@@ -28,7 +28,6 @@ async function main() {
       singleFarmConfig.capacityPerFarm,
       singleFarmConfig.minInvestmentAmount,
       singleFarmConfig.maxInvestmentAmount,
-      singleFarmConfig.maxLeverage,
       singleFarmConfig.usdToken,
       singleFarmConfig.deFarmSeeds
     ]
@@ -40,10 +39,6 @@ async function main() {
 
   console.log("Sleeping for 30 seconds...");
   await new Promise((resolve) => setTimeout(resolve, 30000));
-
-  if(singleFarmConfig.admin) {
-    await factory.setAdmin(singleFarmConfig.admin);
-  }
 
   if(singleFarmConfig.baseTokens.length > 0)
     await factory.addTokens(singleFarmConfig.baseTokens)

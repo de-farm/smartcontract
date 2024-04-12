@@ -7,7 +7,6 @@ interface ISingleFarmFactory {
         uint256 capacityPerFarm,
         uint256 minInvestmentAmount,
         uint256 maxInvestmentAmount,
-        uint256 maxLeverage,
         uint256 ethFee,
         uint256 maxManagerFeeNumerator,
         uint256 maxManagerFeeDenominator,
@@ -24,7 +23,6 @@ interface ISingleFarmFactory {
         uint256 entryPrice,
         uint256 targetPrice,
         uint256 liquidationPrice,
-        uint256 leverage,
         bool tradeDirection,
         address indexed manager,
         uint256 managerFeeNumerator,
@@ -51,7 +49,6 @@ interface ISingleFarmFactory {
         uint256 entryPrice;
         uint256 targetPrice;
         uint256 liquidationPrice;
-        uint256 leverage;
     }
 
     function createFarm(Sf calldata _sf, uint256 _managerFee, bool _isPrivate) external payable returns (address);
@@ -61,10 +58,6 @@ interface ISingleFarmFactory {
     function setMinInvestmentAmount(uint256 _amount) external;
 
     function setMaxInvestmentAmount(uint256 _amount) external;
-
-    function setMaxLeverage(uint256 _maxLeverage) external;
-
-    function setMinLeverage(uint256 _minLeverage) external;
 
     function setMaxManagerFee(uint256 _managerFee) external;
 
