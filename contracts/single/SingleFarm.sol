@@ -168,18 +168,6 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         endTime = block.timestamp;
         fundraisingClosed = true;
 
-        emit FundraisingClosed(totalRaised);
-    }
-
-    function openPosition(bytes calldata info) external override openOnce whenNotPaused whenLinkedSigner {
-        if(msg.sender != manager) revert NoAccess(manager, msg.sender);
-
-        if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
-        if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
-        if (totalRaised < 1) revert ZeroAmount();
-
-        status = SfStatus.OPENED;
-
         IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
 
         IHasProtocolInfo protocolInfo = IHasProtocolInfo(factory);
@@ -193,14 +181,23 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
 
         if(operator == address(0)) revert ZeroAddress();
 
-        ISupportedDex supportedDex = ISupportedDex(factory);
-        IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
-
         (address dex, bytes memory instruction) = dexHandler.depositInstruction(USDC, totalRaised);
         usdc.approve(dex, totalRaised);
 
         (bool success, ) = dex.call(instruction);
         if(!success) revert ExecutionCallFailure();
+
+        emit FundraisingClosed(totalRaised);
+    }
+
+    function openPosition(bytes calldata info) external override openOnce whenNotPaused whenLinkedSigner {
+        if(msg.sender != manager) revert NoAccess(manager, msg.sender);
+
+        if (!fundraisingClosed) revert StillFundraising(endTime, block.timestamp);
+        if (status != SfStatus.NOT_OPENED) revert AlreadyOpened();
+        if (totalRaised < 1) revert ZeroAmount();
+
+        status = SfStatus.OPENED;
 
         emit PositionOpened(info);
     }
@@ -283,6 +280,23 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         endTime = 0;
         status = SfStatus.CANCELLED;
 
+        if(fundraisingClosed) {
+            ISupportedDex supportedDex = ISupportedDex(factory);
+            IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+            uint256 balance = dexHandler.getBalance(address(this), USDC);
+            if (balance < 1) revert ZeroTokenBalance();
+            if (balance < totalRaised) revert NotEnoughFund();
+
+            (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
+
+            IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
+            usdc.approve(dex, holdDexFee);
+
+            (bool success, ) = dex.call(instruction);
+            if(!success) revert ExecutionCallFailure();
+        }
+
         emit Cancelled();
     }
 
@@ -359,6 +373,23 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         }
 
         status = SfStatus.CANCELLED;
+
+        if(fundraisingClosed) {
+            ISupportedDex supportedDex = ISupportedDex(factory);
+            IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
+
+            uint256 balance = dexHandler.getBalance(address(this), USDC);
+            if (balance < 1) revert ZeroTokenBalance();
+            if (balance < totalRaised) revert NotEnoughFund();
+
+            (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
+
+            IERC20Upgradeable usdc = IERC20Upgradeable(USDC);
+            usdc.approve(dex, holdDexFee);
+
+            (bool success, ) = dex.call(instruction);
+            if(!success) revert ExecutionCallFailure();
+        }
 
         emit Cancelled();
     }
