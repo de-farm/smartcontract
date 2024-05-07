@@ -37,8 +37,8 @@ interface ISingleFarm {
     function closeFundraising() external;
     function openPosition(bytes calldata info) external;
     function closePosition(bytes calldata _signature) external;
-    function cancelByAdmin() external;
-    function cancelByManager() external;
+    function cancelByAdmin(bytes calldata _signature, uint256 _minBalance) external;
+    function cancelByManager(bytes calldata _signature, uint256 _minBalance) external;
     function liquidate() external;
     function claim() external;
     function setFundDeadline(uint256 newFundDeadline) external;

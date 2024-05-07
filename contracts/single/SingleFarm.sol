@@ -271,7 +271,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
 
     /// @notice the manager can cancel the farm if they want, after fundraising
     /// @dev can be called by the `manager`
-    function cancelByManager() external override whenNotPaused {
+    function cancelByManager(bytes calldata _signature, uint256 _minBalance) external override whenNotPaused {
         if (msg.sender != manager) revert NoAccess(manager, msg.sender);
         if (status != SfStatus.NOT_OPENED) revert OpenPosition();
         if (block.timestamp > endTime + fundDeadline) revert CantClose();
@@ -281,12 +281,16 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         status = SfStatus.CANCELLED;
 
         if(fundraisingClosed) {
+            if(getCancelByManagerDigest(address(this), _minBalance)
+                .toEthSignedMessageHash().recover(_signature) != operator) revert InvalidSignature(operator);
+
             ISupportedDex supportedDex = ISupportedDex(factory);
             IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
             uint256 balance = dexHandler.getBalance(address(this), USDC);
             if (balance < 1) revert ZeroTokenBalance();
-            if (balance < totalRaised) revert NotEnoughFund();
+            if (balance < _minBalance) revert NotEnoughFund();
+            totalRaised = balance;
 
             (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
 
@@ -364,7 +368,7 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
     /// @dev can be called if there was nothing raised during `fundraisingPeriod`
     /// @dev or can be called if the manager did not open any position within the `fundDeadline` (default - 72 hours)
     /// @dev can only be called by the `admin`
-    function cancelByAdmin() external override onlyAdmin whenNotPaused {
+    function cancelByAdmin(bytes calldata _signature, uint256 _minBalance) external override onlyAdmin whenNotPaused {
         if (status != SfStatus.NOT_OPENED) revert OpenPosition();
         if (totalRaised == 0) {
             if (block.timestamp <= endTime) revert BelowMin(endTime, block.timestamp);
@@ -375,12 +379,16 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
         status = SfStatus.CANCELLED;
 
         if(fundraisingClosed) {
+            if(getCancelByAdminDigest(address(this), _minBalance)
+                .toEthSignedMessageHash().recover(_signature) != operator) revert InvalidSignature(operator);
+
             ISupportedDex supportedDex = ISupportedDex(factory);
             IDexHandler dexHandler = IDexHandler(supportedDex.dexHandler());
 
             uint256 balance = dexHandler.getBalance(address(this), USDC);
             if (balance < 1) revert ZeroTokenBalance();
-            if (balance < totalRaised) revert NotEnoughFund();
+            if (balance < _minBalance) revert NotEnoughFund();
+            totalRaised = balance;
 
             (address dex, bytes memory instruction) = dexHandler.withdrawInstruction(address(this), USDC, balance);
 
@@ -407,6 +415,38 @@ contract SingleFarm is ISingleFarm, Initializable, EIP712Upgradeable, BlastYield
                     abi.encode(
                         CLOSE_POSITION_HASH,
                         _farm
+                    )
+                )
+            );
+    }
+
+    function getCancelByManagerDigest(
+        address _farm,
+        uint256 _minBalance
+    ) public view returns (bytes32) {
+        return
+            _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        CANCEL_BY_MANAGER_HASH,
+                        _farm,
+                        _minBalance
+                    )
+                )
+            );
+    }
+
+    function getCancelByAdminDigest(
+        address _farm,
+        uint256 _minBalance
+    ) public view returns (bytes32) {
+        return
+            _hashTypedDataV4(
+                keccak256(
+                    abi.encode(
+                        CANCEL_BY_ADMIN_HASH,
+                        _farm,
+                        _minBalance
                     )
                 )
             );
